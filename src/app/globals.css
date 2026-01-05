@@ -1,26 +1,550 @@
+/* Google Fonts - Inter for Linear-style UI */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 @import "tailwindcss";
 
+/* ================================================
+   Linear-Inspired Design System
+   Clean, data-dense, professional
+   ================================================ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Background Colors - Warmer, less stark */
+  --bg-primary: #fafaf9;
+  --bg-secondary: #f5f5f4;
+  --bg-tertiary: #e7e5e4;
+  --bg-hover: #e7e5e4;
+  --bg-active: #d6d3d1;
+  --bg-card: #ffffff;
+
+  /* Text Colors */
+  --text-primary: #1c1917;
+  --text-secondary: #44403c;
+  --text-tertiary: #78716c;
+  --text-muted: #a8a29e;
+
+  /* Border Colors */
+  --border-primary: #e7e5e4;
+  --border-secondary: #d6d3d1;
+  --border-focus: #3b82f6;
+
+  /* Accent Colors */
+  --accent-primary: #3b82f6;
+  --accent-primary-hover: #2563eb;
+  --accent-secondary: #6366f1;
+
+  /* Status Colors - Softer, more muted */
+  --status-success: #059669;
+  --status-success-light: #34d399;
+  --status-success-bg: rgba(5, 150, 105, 0.12);
+  --status-warning: #d97706;
+  --status-warning-light: #fbbf24;
+  --status-warning-bg: rgba(217, 119, 6, 0.12);
+  --status-danger: #dc2626;
+  --status-danger-light: #f87171;
+  --status-danger-bg: rgba(220, 38, 38, 0.10);
+  --status-info: #3b82f6;
+  --status-info-bg: rgba(59, 130, 246, 0.1);
+
+  /* Sidebar - Dark for contrast */
+  --sidebar-bg: #111827;
+  --sidebar-bg-hover: rgba(255, 255, 255, 0.05);
+  --sidebar-bg-active: rgba(255, 255, 255, 0.1);
+  --sidebar-text: #f9fafb;
+  --sidebar-text-muted: rgba(255, 255, 255, 0.6);
+  --sidebar-text-dimmed: rgba(255, 255, 255, 0.4);
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+
+  /* Shadows - Subtle */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+
+  /* Typography */
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  /* Spacing */
+  --spacing-page: 24px;
+  --spacing-section: 16px;
+  --spacing-card: 16px;
+
+  /* Border Radius */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  /* Legacy compatibility */
+  --background: var(--bg-primary);
+  --foreground: var(--text-primary);
+
+  /* Scout legacy mappings for gradual migration */
+  --scout-parchment: var(--bg-secondary);
+  --scout-white: var(--bg-primary);
+  --scout-earth: var(--text-primary);
+  --scout-earth-light: var(--text-tertiary);
+  --scout-border: var(--border-primary);
+  --scout-border-dark: var(--border-secondary);
+  --scout-saddle: var(--accent-primary);
+  --scout-saddle-hover: var(--accent-primary-hover);
+  --scout-sky: var(--accent-primary);
+  --scout-sky-hover: var(--accent-primary-hover);
+  --scout-trail: var(--status-success);
+  --scout-sunset: var(--status-warning);
+  --scout-clay: var(--status-danger);
+  --scout-sidebar-bg: var(--sidebar-bg);
+  --scout-sidebar-text: var(--sidebar-text);
+  --scout-sidebar-text-muted: var(--sidebar-text-muted);
+  --scout-sidebar-text-dimmed: var(--sidebar-text-dimmed);
+  --scout-sidebar-border: var(--sidebar-border);
+  --scout-sidebar-hover: var(--sidebar-bg-hover);
+  --scout-sidebar-active: var(--sidebar-bg-active);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
+/* Dark Mode */
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --bg-primary: #09090b;
+    --bg-secondary: #18181b;
+    --bg-tertiary: #27272a;
+    --bg-hover: #27272a;
+    --bg-active: #3f3f46;
+
+    --text-primary: #fafafa;
+    --text-secondary: #a1a1aa;
+    --text-tertiary: #71717a;
+    --text-muted: #52525b;
+
+    --border-primary: #27272a;
+    --border-secondary: #3f3f46;
+
+    --sidebar-bg: #09090b;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
   }
 }
 
+/* Tailwind v4 Theme */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-sans);
+}
+
+/* ================================================
+   Base Styles
+   ================================================ */
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Headings */
+h1, h2, h3, h4, h5, h6 {
+  color: var(--text-primary);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+h1 { font-size: 20px; }
+h2 { font-size: 16px; }
+h3 { font-size: 14px; }
+
+/* Links */
+a {
+  color: var(--accent-primary);
+  text-decoration: none;
+}
+
+a:hover {
+  color: var(--accent-primary-hover);
+}
+
+/* ================================================
+   Component Overrides - Linear Style
+   ================================================ */
+
+/* Primary buttons */
+.bg-blue-600 {
+  background-color: var(--accent-primary) !important;
+}
+
+.bg-blue-600:hover,
+.hover\:bg-blue-700:hover {
+  background-color: var(--accent-primary-hover) !important;
+}
+
+/* Text colors */
+.text-blue-600, .text-blue-500 {
+  color: var(--accent-primary) !important;
+}
+
+/* Cards */
+.bg-white {
+  background-color: var(--bg-primary) !important;
+}
+
+.bg-zinc-50 {
+  background-color: var(--bg-secondary) !important;
+}
+
+.bg-zinc-100 {
+  background-color: var(--bg-tertiary) !important;
+}
+
+.bg-zinc-900 {
+  background-color: var(--bg-primary) !important;
+}
+
+.bg-zinc-800 {
+  background-color: var(--bg-secondary) !important;
+}
+
+/* Borders */
+.border-zinc-200,
+.border-zinc-100,
+.border-zinc-800,
+.border-zinc-700 {
+  border-color: var(--border-primary) !important;
+}
+
+/* Text */
+.text-zinc-900 {
+  color: var(--text-primary) !important;
+}
+
+.text-zinc-700,
+.text-zinc-600 {
+  color: var(--text-secondary) !important;
+}
+
+.text-zinc-500,
+.text-zinc-400 {
+  color: var(--text-tertiary) !important;
+}
+
+.text-zinc-300 {
+  color: var(--text-muted) !important;
+}
+
+/* Dark mode text */
+.dark .dark\:text-zinc-100 {
+  color: var(--text-primary) !important;
+}
+
+.dark .dark\:text-zinc-300,
+.dark .dark\:text-zinc-400 {
+  color: var(--text-tertiary) !important;
+}
+
+.dark .dark\:bg-zinc-900 {
+  background-color: var(--bg-primary) !important;
+}
+
+.dark .dark\:bg-zinc-800 {
+  background-color: var(--bg-secondary) !important;
+}
+
+.dark .dark\:border-zinc-800,
+.dark .dark\:border-zinc-700 {
+  border-color: var(--border-primary) !important;
+}
+
+/* Status Colors */
+.bg-green-600, .bg-green-500 {
+  background-color: var(--status-success) !important;
+}
+
+.text-green-600, .text-green-500, .text-green-700, .text-green-400 {
+  color: var(--status-success) !important;
+}
+
+.bg-green-100, .bg-green-50 {
+  background-color: var(--status-success-bg) !important;
+}
+
+.bg-amber-600, .bg-amber-500, .bg-yellow-500, .bg-yellow-600 {
+  background-color: var(--status-warning) !important;
+}
+
+.text-amber-600, .text-amber-500, .text-yellow-600, .text-yellow-700, .text-yellow-400 {
+  color: var(--status-warning) !important;
+}
+
+.bg-amber-100, .bg-yellow-100, .bg-amber-50, .bg-yellow-50 {
+  background-color: var(--status-warning-bg) !important;
+}
+
+.bg-red-600, .bg-red-500 {
+  background-color: var(--status-danger) !important;
+}
+
+.text-red-600, .text-red-500, .text-red-700, .text-red-400 {
+  color: var(--status-danger) !important;
+}
+
+.bg-red-100, .bg-red-50 {
+  background-color: var(--status-danger-bg) !important;
+}
+
+.bg-blue-100, .bg-blue-50 {
+  background-color: var(--status-info-bg) !important;
+}
+
+.text-blue-700, .text-blue-400 {
+  color: var(--accent-primary) !important;
+}
+
+/* Gray backgrounds */
+.bg-gray-100, .bg-gray-50 {
+  background-color: var(--bg-tertiary) !important;
+}
+
+.hover\:bg-gray-100:hover,
+.hover\:bg-gray-50:hover {
+  background-color: var(--bg-hover) !important;
+}
+
+/* ================================================
+   Spacing - Tight like Linear
+   ================================================ */
+
+/* Page padding */
+.p-8 {
+  padding: var(--spacing-page) !important;
+}
+
+/* Card padding */
+.p-6 {
+  padding: var(--spacing-card) !important;
+}
+
+.p-4 {
+  padding: 12px !important;
+}
+
+/* Section spacing */
+.space-y-6 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: var(--spacing-section) !important;
+}
+
+.space-y-4 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 12px !important;
+}
+
+.space-y-3 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: 8px !important;
+}
+
+/* Gaps */
+.gap-6 {
+  gap: var(--spacing-section) !important;
+}
+
+.gap-4 {
+  gap: 12px !important;
+}
+
+.gap-3 {
+  gap: 8px !important;
+}
+
+/* Margins */
+.mb-8 {
+  margin-bottom: 16px !important;
+}
+
+.mb-6 {
+  margin-bottom: 12px !important;
+}
+
+.mb-4 {
+  margin-bottom: 8px !important;
+}
+
+.mt-6 {
+  margin-top: 16px !important;
+}
+
+.mt-4 {
+  margin-top: 8px !important;
+}
+
+/* Padding */
+.py-8 {
+  padding-top: 20px !important;
+  padding-bottom: 20px !important;
+}
+
+.py-6 {
+  padding-top: 16px !important;
+  padding-bottom: 16px !important;
+}
+
+.py-4 {
+  padding-top: 8px !important;
+  padding-bottom: 8px !important;
+}
+
+.pt-4, .pb-4 {
+  padding-top: 8px !important;
+  padding-bottom: 8px !important;
+}
+
+.pt-6, .pb-6 {
+  padding-top: 12px !important;
+  padding-bottom: 12px !important;
+}
+
+/* ================================================
+   Typography - Clean and Readable
+   ================================================ */
+
+.text-2xl {
+  font-size: 20px !important;
+  line-height: 28px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em !important;
+}
+
+.text-xl {
+  font-size: 16px !important;
+  line-height: 24px !important;
+  font-weight: 600 !important;
+}
+
+.text-lg {
+  font-size: 14px !important;
+  line-height: 20px !important;
+  font-weight: 500 !important;
+}
+
+.text-sm {
+  font-size: 13px !important;
+  line-height: 18px !important;
+}
+
+.text-xs {
+  font-size: 12px !important;
+  line-height: 16px !important;
+}
+
+/* ================================================
+   Border Radius - Subtle
+   ================================================ */
+
+.rounded-xl {
+  border-radius: var(--radius-lg) !important;
+}
+
+.rounded-lg {
+  border-radius: var(--radius-md) !important;
+}
+
+.rounded-md {
+  border-radius: var(--radius-sm) !important;
+}
+
+/* ================================================
+   Tables - Dense
+   ================================================ */
+
+table th, table td {
+  padding: 8px 12px !important;
+}
+
+/* ================================================
+   Form Elements - Clean
+   ================================================ */
+
+input, select, textarea {
+  font-size: 13px !important;
+  padding: 8px 12px !important;
+  border-radius: var(--radius-md) !important;
+  border: 1px solid var(--border-primary) !important;
+  background: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+}
+
+input:focus, select:focus, textarea:focus {
+  outline: none !important;
+  border-color: var(--border-focus) !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1) !important;
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--text-muted) !important;
+}
+
+/* ================================================
+   Buttons - Minimal
+   ================================================ */
+
+button, .btn, [role="button"] {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  padding: 6px 12px !important;
+  border-radius: var(--radius-md) !important;
+}
+
+/* Ensure button text stays white on colored backgrounds */
+button.text-white,
+a.text-white,
+[role="button"].text-white {
+  color: #ffffff !important;
+}
+
+/* ================================================
+   Focus States
+   ================================================ */
+
+.focus\:border-blue-500:focus {
+  border-color: var(--border-focus) !important;
+}
+
+.focus\:ring-blue-500:focus {
+  --tw-ring-color: rgba(59, 130, 246, 0.3) !important;
+}
+
+/* ================================================
+   Cards - Clean borders, subtle shadows
+   ================================================ */
+
+.border {
+  border-width: 1px !important;
+  border-color: var(--border-primary) !important;
+}
+
+/* Hover states for interactive cards */
+.hover\:border-blue-500:hover {
+  border-color: var(--accent-primary) !important;
+}
+
+/* ================================================
+   Dark Mode Adjustments
+   ================================================ */
+
+@media (prefers-color-scheme: dark) {
+  .bg-green-100 {
+    background-color: rgba(16, 185, 129, 0.15) !important;
+  }
+
+  .bg-yellow-100, .bg-amber-100 {
+    background-color: rgba(245, 158, 11, 0.15) !important;
+  }
+
+  .bg-red-100 {
+    background-color: rgba(239, 68, 68, 0.15) !important;
+  }
+
+  .bg-blue-100 {
+    background-color: rgba(59, 130, 246, 0.15) !important;
+  }
 }

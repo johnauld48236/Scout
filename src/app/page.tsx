@@ -1,65 +1,386 @@
-import Image from "next/image";
+import { createClient } from '@/lib/supabase/server'
+import { ARRGoalHero } from '@/components/dashboard/ARRGoalHero'
+import { IntelligenceSummary } from '@/components/dashboard/IntelligenceSummary'
+import { AttentionRequired } from '@/components/dashboard/AttentionRequired'
+import { GoalsProgress } from '@/components/dashboard/GoalsProgress'
 
-export default function Home() {
+const STAGE_PROBABILITIES: Record<string, number> = {
+  Discovery: 0.1,
+  Qualification: 0.25,
+  Proposal: 0.5,
+  Negotiation: 0.75,
+}
+
+export default async function Dashboard() {
+  const supabase = await createClient()
+
+  // Parallel fetch all data
+  const [
+    goalsRes,
+    pursuitsRes,
+    accountPlansRes,
+    actionsRes,
+    tamAccountsRes,
+    signalsRes,
+  ] = await Promise.all([
+    // Goals for 2026
+    supabase
+      .from('goals')
+      .select('*')
+      .eq('is_active', true)
+      .eq('target_year', 2026)
+      .order('parent_goal_id', { ascending: true, nullsFirst: true }),
+
+    // All pursuits
+    supabase
+      .from('pursuits')
+      .select('*, account_plans!inner(account_plan_id, account_name, vertical)')
+      .order('updated_at', { ascending: false }),
+
+    // Account plans with health data
+    supabase
+      .from('account_plans')
+      .select(`
+        account_plan_id,
+        account_name,
+        updated_at,
+        stakeholders(count),
+        pursuits(count),
+        action_items(status, due_date)
+      `),
+
+    // Overdue actions
+    supabase
+      .from('action_items')
+      .select('*, account_plans(account_name, account_plan_id), pursuits(name, pursuit_id)')
+      .neq('status', 'Completed')
+      .neq('status', 'Cancelled')
+      .lt('due_date', new Date().toISOString().split('T')[0])
+      .order('due_date'),
+
+    // TAM accounts
+    supabase
+      .from('tam_accounts')
+      .select('tam_account_id, priority_score, estimated_deal_value, fit_tier')
+      .in('status', ['Qualified', 'Researching', 'Pursuing', 'Prospecting', 'New']),
+
+    // Recent signals
+    supabase
+      .from('account_signals')
+      .select('signal_id, signal_date')
+      .gte('signal_date', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]),
+  ])
+
+  const goals = goalsRes.data || []
+  const pursuits = pursuitsRes.data || []
+  const accountPlans = accountPlansRes.data || []
+  const overdueActions = actionsRes.data || []
+  const tamAccounts = tamAccountsRes.data || []
+  const recentSignals = signalsRes.data || []
+
+  // ==========================================
+  // ARR GOAL HERO DATA
+  // ==========================================
+  // Active pursuits = NOT closed (for pipeline view)
+  // BUT recurring deals are baseline ARR, not real "wins" - include them separately
+  const activePursuits = pursuits.filter(p =>
+    p.stage !== 'Closed_Won' && p.stage !== 'Closed_Lost'
+  )
+
+  // Recurring deals are marked as Closed_Won in spreadsheet ("Win" stage) but they're baseline ARR
+  const recurringPursuits = pursuits.filter(p => {
+    const pt = p.pursuit_type?.toLowerCase()
+    return pt === 'recurring'
+  })
+
+  // Real closed won deals (excluding recurring baseline ARR)
+  const closedWonPursuits = pursuits.filter(p =>
+    p.stage === 'Closed_Won' && p.pursuit_type?.toLowerCase() !== 'recurring'
+  )
+  const closedWonValue = closedWonPursuits.reduce((sum, p) =>
+    sum + (p.confirmed_value || p.estimated_value || 0), 0)
+
+  // Get ARR target from primary revenue goal
+  const primaryGoal = goals.find(g => g.parent_goal_id === null && g.goal_type === 'revenue')
+  const arrTarget = primaryGoal?.target_value || 0
+
+  const categoryGoals = goals.filter(g =>
+    g.parent_goal_id === primaryGoal?.goal_id && g.category !== null
+  )
+
+  // Helper to get deal type from pursuit_type (maps spreadsheet Deal Type column)
+  const getDealType = (p: typeof pursuits[0]) => {
+    if (!p.pursuit_type) return 'new_business'
+    const pt = p.pursuit_type.toLowerCase()
+    if (pt === 'recurring') return 'recurring'
+    if (pt === 'renewal') return 'renewal'
+    if (pt === 'upsell') return 'upsell'
+    return 'new_business' // PoC, Pilot, New Business
+  }
+
+  // Get weighted value - use stored value from Column P (Weighted Amount Conservative)
+  const getWeightedValue = (p: typeof pursuits[0]) => {
+    return p.weighted_value || 0
+  }
+
+  // Recurring weighted (baseline ARR from spreadsheet)
+  const recurringWeightedValue = recurringPursuits.reduce((sum, p) => sum + getWeightedValue(p), 0)
+  const recurringPipelineValue = recurringPursuits.reduce((sum, p) => sum + (p.estimated_value || 0), 0)
+
+  // Total pipeline (unweighted - Column K Total Amount) - includes recurring
+  const totalPipeline = activePursuits.reduce((sum, p) => {
+    return sum + (p.confirmed_value || p.estimated_value || 0)
+  }, 0) + recurringPipelineValue
+
+  // Total weighted pipeline (Column P - Weighted Amount Conservative) - includes recurring
+  const totalWeightedPipeline = activePursuits.reduce((sum, p) => {
+    return sum + getWeightedValue(p)
+  }, 0) + recurringWeightedValue
+
+  // Pipeline by stage (with weighted values)
+  const pipelineByStage = activePursuits.reduce((acc, p) => {
+    const stage = p.stage || 'Discovery'
+    const value = p.confirmed_value || p.estimated_value || 0
+    const weighted = getWeightedValue(p)
+    if (!acc[stage]) acc[stage] = { value: 0, count: 0, weightedValue: 0 }
+    acc[stage].value += value
+    acc[stage].weightedValue += weighted
+    acc[stage].count++
+    return acc
+  }, {} as Record<string, { value: number; count: number; weightedValue: number }>)
+
+  const stageData = (Object.entries(pipelineByStage) as [string, { value: number; count: number; weightedValue: number }][])
+    .map(([stage, data]) => ({
+      stage,
+      value: data.value,
+      count: data.count,
+      weightedValue: data.weightedValue
+    }))
+
+  // Group pursuits by deal_type with stage breakdown
+  type StageBreakdown = { stage: string; value: number; count: number; weightedValue: number }
+  type TypeData = {
+    pipeline: number
+    weighted: number
+    count: number
+    byStage: Record<string, { value: number; count: number; weightedValue: number }>
+  }
+
+  const pursuitsByType = activePursuits.reduce((acc, p) => {
+    const type = getDealType(p)
+    const stage = p.stage || 'Discovery'
+    const value = p.confirmed_value || p.estimated_value || 0
+    const weighted = getWeightedValue(p)
+
+    if (!acc[type]) acc[type] = { pipeline: 0, weighted: 0, count: 0, byStage: {} }
+    acc[type].pipeline += value
+    acc[type].weighted += weighted
+    acc[type].count++
+
+    if (!acc[type].byStage[stage]) acc[type].byStage[stage] = { value: 0, count: 0, weightedValue: 0 }
+    acc[type].byStage[stage].value += value
+    acc[type].byStage[stage].weightedValue += weighted
+    acc[type].byStage[stage].count++
+
+    return acc
+  }, {} as Record<string, TypeData>)
+
+  // Closed by type
+  const closedByType = closedWonPursuits.reduce((acc, p) => {
+    const type = getDealType(p)
+    acc[type] = (acc[type] || 0) + (p.confirmed_value || p.estimated_value || 0)
+    return acc
+  }, {} as Record<string, number>)
+
+  // Renewals confirmed = high probability renewals (Negotiation stage or 70%+ probability)
+  const renewalsConfirmed = activePursuits
+    .filter(p => getDealType(p) === 'renewal' && (p.stage === 'Negotiation' || (p.probability || 0) >= 70))
+    .reduce((sum, p) => sum + (p.confirmed_value || p.estimated_value || 0), 0)
+
+  // Build category data with stage breakdown
+  const buildStageArray = (byStage: Record<string, { value: number; count: number; weightedValue: number }> | undefined): StageBreakdown[] => {
+    if (!byStage) return []
+    return Object.entries(byStage).map(([stage, data]) => ({
+      stage,
+      value: data.value,
+      count: data.count,
+      weightedValue: data.weightedValue
+    }))
+  }
+
+  // arrCategories uses the recurringPursuits already calculated above
+  const arrCategories = [
+    {
+      name: 'recurring',
+      label: 'Recurring',
+      target: 0, // Recurring is baseline, not a target
+      closed: 0,
+      totalPipeline: recurringPipelineValue,
+      weightedPipeline: recurringWeightedValue,
+      dealCount: recurringPursuits.length,
+      byStage: [] // Recurring is all "win" stage
+    },
+    {
+      name: 'upsell',
+      label: 'Upsell',
+      target: categoryGoals.find(g => g.category === 'upsell')?.target_value || 0,
+      closed: closedByType['upsell'] || 0,
+      totalPipeline: pursuitsByType['upsell']?.pipeline || 0,
+      weightedPipeline: pursuitsByType['upsell']?.weighted || 0,
+      dealCount: pursuitsByType['upsell']?.count || 0,
+      byStage: buildStageArray(pursuitsByType['upsell']?.byStage)
+    },
+    {
+      name: 'new_business',
+      label: 'New Business',
+      target: categoryGoals.find(g => g.category === 'new_arr')?.target_value || 0,
+      closed: closedByType['new_business'] || 0,
+      totalPipeline: pursuitsByType['new_business']?.pipeline || 0,
+      weightedPipeline: pursuitsByType['new_business']?.weighted || 0,
+      dealCount: pursuitsByType['new_business']?.count || 0,
+      byStage: buildStageArray(pursuitsByType['new_business']?.byStage)
+    }
+  ]
+
+  // ==========================================
+  // INTELLIGENCE SUMMARY
+  // ==========================================
+  const highPriorityTam = tamAccounts.filter(t => t.priority_score >= 70).length
+  const estimatedOpportunity = tamAccounts.reduce((sum, t) =>
+    sum + (t.estimated_deal_value || 0), 0)
+
+  // Account plan health
+  const now = new Date()
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+  const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000)
+
+  const stalePlans = accountPlans.filter(p => {
+    const updatedAt = p.updated_at ? new Date(p.updated_at) : null
+    return updatedAt && updatedAt < fourteenDaysAgo
+  })
+
+  const plansNeedingAttention = accountPlans.filter(p => {
+    const updatedAt = p.updated_at ? new Date(p.updated_at) : null
+    return updatedAt && updatedAt < sevenDaysAgo && updatedAt >= fourteenDaysAgo
+  })
+
+  const openPursuitCount = activePursuits.length
+
+  // Gaps for intelligence summary
+  const newBusinessGap = Math.max(0,
+    (categoryGoals.find(g => g.category === 'new_arr')?.target_value || 0) -
+    (closedByType['new_business'] || 0)
+  )
+
+  const upsellGap = Math.max(0,
+    (categoryGoals.find(g => g.category === 'upsell')?.target_value || 0) +
+    (categoryGoals.find(g => g.category === 'renewal')?.target_value || 0) -
+    (closedByType['upsell'] || 0) -
+    (closedByType['renewal'] || 0)
+  )
+
+  // ==========================================
+  // ATTENTION REQUIRED
+  // ==========================================
+  const stalledDeals = activePursuits.filter(p => {
+    const updatedAt = p.updated_at ? new Date(p.updated_at) : null
+    return updatedAt && updatedAt < fourteenDaysAgo
+  })
+
+  type AttentionItem = {
+    type: 'stale_plan' | 'overdue_action' | 'stalled_deal' | 'at_risk_goal'
+    title: string
+    subtitle?: string
+    link: string
+    daysOld?: number
+  }
+
+  const attentionItems: AttentionItem[] = [
+    ...overdueActions.slice(0, 3).map(a => ({
+      type: 'overdue_action' as const,
+      title: a.title,
+      subtitle: a.account_plans?.account_name || a.pursuits?.name,
+      link: a.pursuits?.pursuit_id
+        ? `/accounts/${a.account_plan_id}/pursuits/${a.pursuits.pursuit_id}`
+        : `/accounts/${a.account_plan_id}`,
+      daysOld: Math.floor((Date.now() - new Date(a.due_date).getTime()) / (1000 * 60 * 60 * 24))
+    })),
+    ...stalledDeals.slice(0, 2).map(p => ({
+      type: 'stalled_deal' as const,
+      title: p.name,
+      subtitle: p.account_plans?.account_name,
+      link: `/accounts/${p.account_plan_id}/pursuits/${p.pursuit_id}`,
+      daysOld: Math.floor((Date.now() - new Date(p.updated_at).getTime()) / (1000 * 60 * 60 * 24))
+    })),
+    ...stalePlans.slice(0, 2).map(p => ({
+      type: 'stale_plan' as const,
+      title: p.account_name,
+      subtitle: 'No recent activity',
+      link: `/accounts/${p.account_plan_id}`,
+      daysOld: Math.floor((Date.now() - new Date(p.updated_at).getTime()) / (1000 * 60 * 60 * 24))
+    }))
+  ]
+
+  // ==========================================
+  // GOALS
+  // ==========================================
+  // Show category sub-goals and logo goals (NOT the primary $10M ARR - it's in the hero)
+  const logoGoals = goals.filter(g => g.goal_type === 'logos' && g.parent_goal_id === null)
+
+  // Exclude the primary revenue goal (shown in hero) and show category breakdowns + logos
+  const displayGoals = [
+    ...categoryGoals.slice(0, 3),  // New Business, Upsell, Renewal targets
+    ...logoGoals.slice(0, 2)       // Logo/customer count goals
+  ].filter(Boolean) as typeof goals
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <div className="p-6 space-y-5">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-semibold" style={{ color: 'var(--text-primary)' }}>
+            Dashboard
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="text-xs mt-0.5" style={{ color: 'var(--text-tertiary)' }}>
+            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
           </p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
+      </div>
+
+      {/* ARR Goal Hero */}
+      <ARRGoalHero
+        arrTarget={arrTarget}
+        renewalsConfirmed={renewalsConfirmed}
+        categories={arrCategories}
+        totalClosed={closedWonValue}
+        totalPipeline={totalPipeline}
+        totalWeightedPipeline={totalWeightedPipeline}
+        pipelineByStage={stageData}
+      />
+
+      {/* Intelligence Summary */}
+      <IntelligenceSummary
+        tamAccountCount={tamAccounts.length}
+        highPriorityCount={highPriorityTam}
+        recentSignals={recentSignals.length}
+        estimatedOpportunity={estimatedOpportunity}
+        activeAccountPlans={accountPlans.length}
+        accountsNeedingAttention={stalePlans.length + plansNeedingAttention.length}
+        openPursuits={openPursuitCount}
+        newBusinessGap={newBusinessGap}
+        upsellGap={upsellGap}
+      />
+
+      {/* Bottom Row: Goals + Attention */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <GoalsProgress goals={displayGoals} />
+        <AttentionRequired
+          items={attentionItems}
+          stalePlans={stalePlans.length}
+          overdueActions={overdueActions.length}
+          stalledDeals={stalledDeals.length}
+        />
+      </div>
     </div>
-  );
+  )
 }
