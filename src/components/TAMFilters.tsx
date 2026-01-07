@@ -9,11 +9,16 @@ interface TAMFiltersProps {
     campaign?: string
     min_priority?: string
   }
+  basePath?: string // Optional base path for URL updates (e.g., '/landscape/list')
 }
 
-export function TAMFilters({ verticals, campaigns, currentFilters }: TAMFiltersProps) {
+export function TAMFilters({ verticals, campaigns, currentFilters, basePath }: TAMFiltersProps) {
   const updateFilter = (key: string, value: string) => {
     const url = new URL(window.location.href)
+    // If basePath is provided, update the pathname
+    if (basePath) {
+      url.pathname = basePath
+    }
     if (value) {
       url.searchParams.set(key, value)
     } else {

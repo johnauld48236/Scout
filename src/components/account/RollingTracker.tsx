@@ -1145,6 +1145,8 @@ export function RollingTracker({
         </div>
       </div>
 
+      {/* Scrollable Content Area */}
+      <div className="max-h-[400px] overflow-y-auto">
       {/* Overdue Section - explicit dates past due */}
       {overdueCount > 0 && (
         <div className="mb-3 p-3 rounded-lg border" style={{ backgroundColor: 'rgba(169, 68, 66, 0.05)', borderColor: 'var(--scout-clay)' }}>
@@ -1655,6 +1657,7 @@ export function RollingTracker({
           No milestones or scheduled items yet
         </p>
       )}
+      </div>{/* End Scrollable Content Area */}
 
       {/* Create Bucket Modal */}
       {showBucketModal && (

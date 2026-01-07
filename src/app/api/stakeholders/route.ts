@@ -161,3 +161,31 @@ export async function PUT(request: NextRequest) {
     return Response.json({ error: 'Failed to update stakeholder' }, { status: 500 })
   }
 }
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const supabase = await createClient()
+    const body = await request.json()
+
+    const { stakeholder_id } = body
+
+    if (!stakeholder_id) {
+      return Response.json({ error: 'stakeholder_id is required' }, { status: 400 })
+    }
+
+    const { error } = await supabase
+      .from('stakeholders')
+      .delete()
+      .eq('stakeholder_id', stakeholder_id)
+
+    if (error) {
+      console.error('Error deleting stakeholder:', error)
+      return Response.json({ error: `Failed to delete stakeholder: ${error.message}` }, { status: 500 })
+    }
+
+    return Response.json({ success: true })
+  } catch (error) {
+    console.error('Stakeholder API error:', error)
+    return Response.json({ error: 'Failed to delete stakeholder' }, { status: 500 })
+  }
+}

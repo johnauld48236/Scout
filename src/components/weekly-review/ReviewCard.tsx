@@ -368,8 +368,45 @@ export function ReviewCard({
             </div>
           </div>
 
+          {/* External Links Row */}
+          <div className="flex items-center gap-4 mt-4 pt-3 border-t" style={{ borderColor: 'var(--scout-border)' }}>
+            <span className="text-xs font-medium" style={{ color: 'var(--scout-earth-light)' }}>
+              External:
+            </span>
+            <a
+              href="#"
+              onClick={(e) => e.preventDefault()}
+              className="flex items-center gap-1.5 px-2 py-1 rounded text-xs hover:bg-gray-100 transition-colors"
+              style={{ color: 'var(--scout-earth)' }}
+              title="CRM integration coming soon"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+              Open in CRM
+              <span className="px-1 py-0.5 bg-gray-100 rounded text-[10px]" style={{ color: 'var(--scout-earth-light)' }}>
+                Soon
+              </span>
+            </a>
+            <a
+              href="#"
+              onClick={(e) => e.preventDefault()}
+              className="flex items-center gap-1.5 px-2 py-1 rounded text-xs hover:bg-gray-100 transition-colors"
+              style={{ color: 'var(--scout-earth)' }}
+              title="Jira integration coming soon"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+              </svg>
+              View Tasks
+              <span className="px-1 py-0.5 bg-gray-100 rounded text-[10px]" style={{ color: 'var(--scout-earth-light)' }}>
+                Soon
+              </span>
+            </a>
+          </div>
+
           {/* Actions Row */}
-          <div className="flex items-center justify-between mt-4 pt-4 border-t" style={{ borderColor: 'var(--scout-border)' }}>
+          <div className="flex items-center justify-between mt-3 pt-3 border-t" style={{ borderColor: 'var(--scout-border)' }}>
             <div className="flex items-center gap-2">
               <Link
                 href={`/accounts/${account.account_plan_id}`}

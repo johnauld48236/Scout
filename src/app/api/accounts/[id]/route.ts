@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-// GET - Fetch single account
+// GET - Fetch single account with all related data
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -13,7 +13,8 @@ export async function GET(
     const { id } = await params
     const supabase = await createClient()
 
-    const { data, error } = await supabase
+    // Fetch account plan
+    const { data: account, error } = await supabase
       .from('account_plans')
       .select('*')
       .eq('account_plan_id', id)
@@ -24,11 +25,37 @@ export async function GET(
       return Response.json({ error: 'Failed to fetch account' }, { status: 500 })
     }
 
-    if (!data) {
+    if (!account) {
       return Response.json({ error: 'Account not found' }, { status: 404 })
     }
 
-    return Response.json({ success: true, data })
+    // Fetch all related data in parallel
+    const [
+      divisionsResult,
+      stakeholdersResult,
+      signalsResult,
+      themesResult,
+      pursuitsResult,
+      actionItemsResult,
+    ] = await Promise.all([
+      supabase.from('account_divisions').select('*').eq('account_plan_id', id),
+      supabase.from('stakeholders').select('*').eq('account_plan_id', id),
+      supabase.from('account_signals').select('*').eq('account_plan_id', id).order('signal_date', { ascending: false }),
+      supabase.from('scout_themes').select('*').eq('account_plan_id', id),
+      supabase.from('pursuits').select('*').eq('account_plan_id', id),
+      supabase.from('action_items').select('*').eq('account_plan_id', id).order('due_date', { ascending: true }),
+    ])
+
+    return Response.json({
+      success: true,
+      data: account,
+      divisions: divisionsResult.data || [],
+      stakeholders: stakeholdersResult.data || [],
+      signals: signalsResult.data || [],
+      scout_themes: themesResult.data || [],
+      pursuits: pursuitsResult.data || [],
+      action_items: actionItemsResult.data || [],
+    })
   } catch (error) {
     console.error('Fetch API error:', error)
     return Response.json({ error: 'Failed to fetch account' }, { status: 500 })

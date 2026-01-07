@@ -21,6 +21,8 @@ interface Stakeholder {
   profile_notes?: string
   reports_to_id?: string
   org_level?: number
+  is_placeholder?: boolean  // true = waypoint (role to find), false = confirmed contact
+  placeholder_role?: string  // Role description for waypoints
 }
 
 interface StakeholderModalProps {
@@ -79,6 +81,8 @@ export function StakeholderModal({ isOpen, onClose, accountPlanId, stakeholder, 
     profile_notes: '',
     reports_to_id: '',
     org_level: '',
+    is_placeholder: false,
+    placeholder_role: '',
   })
 
   useEffect(() => {
@@ -98,6 +102,8 @@ export function StakeholderModal({ isOpen, onClose, accountPlanId, stakeholder, 
         profile_notes: stakeholder.profile_notes || '',
         reports_to_id: stakeholder.reports_to_id || '',
         org_level: stakeholder.org_level?.toString() || '',
+        is_placeholder: stakeholder.is_placeholder || false,
+        placeholder_role: stakeholder.placeholder_role || '',
       })
     } else {
       setFormData({
@@ -115,6 +121,8 @@ export function StakeholderModal({ isOpen, onClose, accountPlanId, stakeholder, 
         profile_notes: '',
         reports_to_id: '',
         org_level: '',
+        is_placeholder: false,
+        placeholder_role: '',
       })
     }
   }, [stakeholder])
@@ -147,6 +155,9 @@ export function StakeholderModal({ isOpen, onClose, accountPlanId, stakeholder, 
     if (formData.reports_to_id) data.reports_to_id = formData.reports_to_id
     else data.reports_to_id = null
     if (formData.org_level) data.org_level = parseInt(formData.org_level)
+    // Compass: confirmed vs waypoint distinction
+    data.is_placeholder = formData.is_placeholder
+    if (formData.placeholder_role) data.placeholder_role = formData.placeholder_role
 
     let result
     if (isEditing) {

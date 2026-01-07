@@ -8,51 +8,48 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || '',
 })
 
-// Search the web for company information
-async function searchCompany(query: string): Promise<string> {
+// Verify a domain exists by checking if it responds
+async function verifyDomain(domain: string): Promise<boolean> {
   try {
-    const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`
-
-    const response = await fetch(searchUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36'
-      }
+    const response = await fetch(`https://${domain}`, {
+      method: 'HEAD',
+      signal: AbortSignal.timeout(5000),
     })
-
-    if (!response.ok) return ''
-
-    const html = await response.text()
-    const results: string[] = []
-
-    // Extract snippets and URLs
-    const snippetRegex = /<a class="result__snippet"[^>]*>([^<]*(?:<[^>]*>[^<]*)*)<\/a>/g
-    let match
-    while ((match = snippetRegex.exec(html)) !== null) {
-      const snippet = match[1]
-        .replace(/<[^>]*>/g, '')
-        .replace(/&amp;/g, '&')
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>')
-        .replace(/&quot;/g, '"')
-        .replace(/&#x27;/g, "'")
-        .trim()
-      if (snippet) results.push(snippet)
-    }
-
-    // Extract URLs to find the company website
-    const urlRegex = /<a class="result__a"[^>]*href="([^"]*)"[^>]*>([^<]*(?:<[^>]*>[^<]*)*)<\/a>/g
-    while ((match = urlRegex.exec(html)) !== null) {
-      const url = match[1]
-      const title = match[2].replace(/<[^>]*>/g, '').trim()
-      if (url && title && !url.includes('duckduckgo.com')) {
-        results.push(`URL: ${url} - ${title}`)
-      }
-    }
-
-    return results.slice(0, 15).join('\n')
+    return response.ok || response.status === 301 || response.status === 302
   } catch {
-    return ''
+    return false
   }
+}
+
+// Generate likely domain variations for a company name
+function generateDomainGuesses(companyName: string): string[] {
+  const clean = companyName
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, '')
+    .trim()
+
+  const words = clean.split(/\s+/)
+  const guesses: string[] = []
+
+  // Common patterns
+  guesses.push(`${words.join('')}.com`)
+  guesses.push(`${words[0]}.com`)
+  if (words.length > 1) {
+    guesses.push(`${words.slice(0, 2).join('')}.com`)
+  }
+
+  // Remove common suffixes for cleaner domains
+  const withoutSuffixes = clean
+    .replace(/\b(inc|corp|corporation|llc|ltd|co|company|group|holdings)\b/gi, '')
+    .trim()
+    .split(/\s+/)
+
+  if (withoutSuffixes.length > 0 && withoutSuffixes[0] !== words[0]) {
+    guesses.push(`${withoutSuffixes.join('')}.com`)
+    guesses.push(`${withoutSuffixes[0]}.com`)
+  }
+
+  return [...new Set(guesses)]
 }
 
 export async function POST(request: NextRequest) {
@@ -63,45 +60,38 @@ export async function POST(request: NextRequest) {
       return Response.json({ error: 'Search query is required' }, { status: 400 })
     }
 
-    // Search for the company
-    const [companySearch, websiteSearch] = await Promise.all([
-      searchCompany(`${query} company overview headquarters employees`),
-      searchCompany(`${query} official website`),
-    ])
-
-    const searchResults = `
-COMPANY SEARCH:
-${companySearch}
-
-WEBSITE SEARCH:
-${websiteSearch}
-`.trim()
-
-    // Use Claude to extract company info from search results
+    // Use Claude's knowledge directly - more reliable than web scraping
     const response = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 1024,
-      system: `You are a company research assistant. Your job is to identify the correct company from search results and extract key information. Be accurate - if you're not sure about something, say so.`,
+      system: `You are a company research assistant with extensive knowledge of businesses worldwide.
+Your job is to identify companies and provide accurate information about them.
+You have knowledge of most major companies including their official websites, headquarters, size, and industry.
+Be accurate - if you're not certain about something, indicate that in your confidence level.`,
       messages: [{
         role: 'user',
-        content: `The user searched for: "${query}"
+        content: `Look up information about this company: "${query}"
 
-Search results:
-${searchResults}
-
-Identify the most likely company match and extract information. Return a JSON object:
+Provide details about the most likely company match. Return a JSON object:
 {
-  "name": "Official Company Name",
+  "name": "Official Company Name (legal/formal name)",
   "website": "company.com (just the domain, no https://)",
-  "industry": "Their primary industry",
-  "employeeCount": "Employee range like '10,000-50,000' or 'Enterprise' if very large",
+  "industry": "Their primary industry/sector",
+  "employeeCount": "Approximate employee count or range like '10,000-50,000'",
   "headquarters": "City, State/Country",
-  "description": "One sentence about what they do",
+  "description": "One or two sentences about what they do",
   "confidence": "high" | "medium" | "low",
-  "confidenceReason": "Brief explanation of why you're confident or not"
+  "confidenceReason": "Brief explanation of your confidence level"
 }
 
-If you find multiple possible matches, pick the most likely one (usually the largest/most well-known company with that name). Only return valid JSON.`
+IMPORTANT for website:
+- Provide the actual corporate domain (e.g., "medtronic.com", "apple.com")
+- Do NOT include "www." or "https://"
+- If uncertain, make an educated guess based on company name
+
+For well-known companies, you should have high confidence.
+For lesser-known companies, indicate medium or low confidence.
+Only return valid JSON, nothing else.`
       }],
     })
 
@@ -115,6 +105,44 @@ If you find multiple possible matches, pick the most likely one (usually the lar
     }
 
     const company = JSON.parse(jsonMatch[0])
+
+    // If no website was provided, try to guess and verify
+    if (!company.website && company.name) {
+      const guesses = generateDomainGuesses(company.name)
+      for (const guess of guesses) {
+        const valid = await verifyDomain(guess)
+        if (valid) {
+          company.website = guess
+          company.confidenceReason = (company.confidenceReason || '') + ' Website verified via domain check.'
+          break
+        }
+      }
+    }
+
+    // Optionally verify the website if provided
+    if (company.website) {
+      const verified = await verifyDomain(company.website)
+      if (!verified) {
+        // Try common variations
+        const variations = [
+          company.website,
+          `www.${company.website}`,
+          company.website.replace('www.', ''),
+        ]
+        let found = false
+        for (const v of variations) {
+          if (await verifyDomain(v)) {
+            company.website = v.replace('www.', '')
+            found = true
+            break
+          }
+        }
+        if (!found && company.confidence === 'high') {
+          company.confidence = 'medium'
+          company.confidenceReason = (company.confidenceReason || '') + ' Note: Could not verify website.'
+        }
+      }
+    }
 
     return Response.json({ company })
   } catch (error) {

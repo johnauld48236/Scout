@@ -22,18 +22,38 @@ export async function POST(
     if (body.phone) insertData.phone = body.phone
     if (body.role_type) insertData.role_type = body.role_type
     if (body.business_unit) insertData.business_unit = body.business_unit
-    if (body.department) insertData.department = body.department
 
-    const { data, error } = await supabase
+    // Compass fields for confirmed vs waypoint distinction
+    if (body.is_placeholder !== undefined) insertData.is_placeholder = body.is_placeholder
+    if (body.placeholder_role) insertData.placeholder_role = body.placeholder_role
+
+    // Optional fields that may not exist in schema yet
+    const optionalFields: Record<string, unknown> = {}
+    if (body.department) optionalFields.department = body.department
+    if (body.influence_level) optionalFields.influence_level = body.influence_level
+
+    // Try with optional fields first, fall back without them
+    let result = await supabase
       .from('stakeholders')
-      .insert(insertData)
+      .insert({ ...insertData, ...optionalFields })
       .select()
       .single()
 
-    if (error) {
-      console.error('Stakeholder insert error:', error)
-      return Response.json({ error: error.message }, { status: 500 })
+    // If error mentions missing column, retry without optional fields
+    if (result.error?.message?.includes('column')) {
+      result = await supabase
+        .from('stakeholders')
+        .insert(insertData)
+        .select()
+        .single()
     }
+
+    if (result.error) {
+      console.error('Stakeholder insert error:', result.error)
+      return Response.json({ error: result.error.message }, { status: 500 })
+    }
+
+    const data = result.data
 
     return Response.json(data)
   } catch (error) {

@@ -25,6 +25,8 @@ import { HubSpotEnrichButton } from '@/components/integrations/HubSpotEnrichButt
 import { FinancialHealthIndicator } from '@/components/account/FinancialHealthIndicator'
 import { SignalsSection } from '@/components/account/SignalsSection'
 import { CampaignSelector } from '@/components/account/CampaignSelector'
+import { AccountLayoutToggle } from '@/components/account/AccountLayoutToggle'
+import { ExternalSourcesPanel } from '@/components/account/ExternalSourcesPanel'
 
 export default async function AccountDetailPage({
   params,
@@ -42,7 +44,7 @@ export default async function AccountDetailPage({
     .single()
 
   // Fetch related data
-  const [pursuitsRes, stakeholdersRes, actionsRes, engagementsRes, painPointsRes, risksRes, reviewNotesRes, bucketsRes, divisionsRes, companyProfileRes] = await Promise.all([
+  const [pursuitsRes, stakeholdersRes, actionsRes, engagementsRes, painPointsRes, risksRes, reviewNotesRes, bucketsRes, divisionsRes, companyProfileRes, scoutThemesRes] = await Promise.all([
     supabase.from('pursuits').select('*').eq('account_plan_id', id),
     supabase.from('stakeholders').select('*').eq('account_plan_id', id),
     supabase.from('action_items').select('*').eq('account_plan_id', id).order('due_date'),
@@ -64,6 +66,7 @@ export default async function AccountDetailPage({
     supabase.from('buckets').select('*').eq('account_plan_id', id).order('display_order'),
     supabase.from('account_divisions').select('*').eq('account_plan_id', id).order('sort_order'),
     supabase.from('company_profile').select('value_proposition, tagline').limit(1).single(),
+    supabase.from('scout_themes').select('*').eq('account_plan_id', id).order('created_at', { ascending: false }),
   ])
 
   const pursuits = pursuitsRes.data || []
@@ -73,6 +76,7 @@ export default async function AccountDetailPage({
   const buckets = bucketsRes.data || []
   const divisions = divisionsRes.data || []
   const companyProfile = companyProfileRes.data
+  const scoutThemes = scoutThemesRes.data || []
 
   // Get company context from profile (what we sell)
   const companyContext = companyProfile?.value_proposition || companyProfile?.tagline || null
@@ -262,7 +266,138 @@ export default async function AccountDetailPage({
     ...milestones.day_90.filter((m: { completed: boolean }) => m.completed),
   ].length
 
+  // Prepare tracker actions for new layout
+  // Use action_items (new system) combined with bucket_items (legacy system)
+  const trackerActions: Array<{
+    action_id: string
+    description: string
+    due_date?: string
+    status: string
+    bucket: '30' | '60' | '90'
+    priority?: string
+  }> = []
+
+  // Add action_items with calculated bucket based on due_date
+  const nowForBucket = new Date()
+  for (const action of actionItems) {
+    let bucket: '30' | '60' | '90' = '30'
+    if (action.due_date) {
+      const dueDate = new Date(action.due_date)
+      const daysFromNow = Math.ceil((dueDate.getTime() - nowForBucket.getTime()) / (1000 * 60 * 60 * 24))
+      if (daysFromNow > 60) bucket = '90'
+      else if (daysFromNow > 30) bucket = '60'
+      else bucket = '30'
+    }
+    trackerActions.push({
+      action_id: action.action_id,
+      description: action.title || action.description || '',
+      due_date: action.due_date,
+      status: action.status === 'Completed' ? 'completed' : action.status === 'In Progress' ? 'in_progress' : 'pending',
+      bucket,
+      priority: action.priority,
+    })
+  }
+
+  // Also include bucket_items (legacy) if they exist
+  for (const item of bucketItems) {
+    const bucket = buckets.find((b: { bucket_id: string; bucket_type?: string }) => b.bucket_id === item.bucket_id)
+    const bucketType = (bucket?.bucket_type || '30') as '30' | '60' | '90'
+    trackerActions.push({
+      action_id: item.bucket_item_id,
+      description: item.description || item.title || '',
+      due_date: item.due_date,
+      status: item.status || 'pending',
+      bucket: bucketType,
+      priority: item.priority,
+    })
+  }
+
+  // Prepare signals for new layout
+  const signalsForNewLayout = allSignals.map(s => ({
+    signal_id: s.signal_id,
+    title: s.title,
+    summary: s.summary,
+    signal_type: s.signal_type,
+    signal_date: s.signal_date,
+  }))
+
+  // Prepare stakeholders for new layout
+  const stakeholdersForNewLayout = stakeholders.map((s: { stakeholder_id: string; full_name: string; title?: string; influence_level?: string }) => ({
+    stakeholder_id: s.stakeholder_id,
+    full_name: s.full_name,
+    title: s.title,
+    influence_level: s.influence_level,
+  }))
+
+  // Prepare divisions for new layout
+  const divisionsForNewLayout = divisions.map((d: { division_id: string; name: string }) => ({
+    division_id: d.division_id,
+    name: d.name,
+  }))
+
+  // Prepare pursuits for new layout
+  const pursuitsForNewLayout = pursuits.map((p: { pursuit_id: string; name: string; stage?: string; estimated_value?: number; thesis?: string }) => ({
+    pursuit_id: p.pursuit_id,
+    name: p.name,
+    stage: p.stage || 'Discovery',
+    estimated_value: typeof p.estimated_value === 'string' ? parseFloat(p.estimated_value) : p.estimated_value,
+    thesis: p.thesis,
+  }))
+
+  // Prepare pain points for new layout
+  const painPointsForNewLayout = painPoints.map((p: { pain_point_id: string; description?: string; severity?: string }) => ({
+    pain_point_id: p.pain_point_id,
+    description: p.description || '',
+    severity: p.severity,
+  }))
+
+  // Prepare risks for new layout
+  const risksForNewLayout = risks.map((r: { risk_id: string; description?: string; likelihood?: string }) => ({
+    risk_id: r.risk_id,
+    description: r.description || '',
+    likelihood: r.likelihood,
+  }))
+
+  // Prepare scout themes for new layout
+  const scoutThemesForNewLayout = scoutThemes.map((t: {
+    theme_id: string
+    title: string
+    description?: string
+    why_it_matters?: string
+    size?: string
+    questions_to_explore?: string[]
+    status?: string
+  }) => ({
+    theme_id: t.theme_id,
+    title: t.title,
+    description: t.description || '',
+    why_it_matters: t.why_it_matters || '',
+    size: t.size || 'medium',
+    questions_to_explore: t.questions_to_explore || [],
+    status: t.status || 'exploring',
+  }))
+
   return (
+    <AccountLayoutToggle
+      accountId={id}
+      accountName={account.account_name}
+      industry={account.industry}
+      headquarters={account.headquarters}
+      employeeCount={account.employee_count}
+      website={account.website}
+      divisions={divisionsForNewLayout}
+      stakeholders={stakeholdersForNewLayout}
+      signals={signalsForNewLayout}
+      pursuits={pursuitsForNewLayout}
+      trackerActions={trackerActions}
+      painPoints={painPointsForNewLayout}
+      risks={risksForNewLayout}
+      scoutThemes={scoutThemesForNewLayout}
+      hasTracker={trackerActions.length > 0}
+      isFavorite={account.is_favorite || false}
+      inWeeklyReview={account.in_weekly_review || false}
+      lastRefreshed={account.last_reviewed_at}
+    >
     <div className="min-h-screen" style={{ backgroundColor: 'var(--scout-parchment)' }}>
       {/* Header */}
       <div className="border-b" style={{ backgroundColor: 'var(--scout-white)', borderColor: 'var(--scout-border)' }}>
@@ -614,6 +749,15 @@ export default async function AccountDetailPage({
               buyingSignals={account.buying_signals}
             />
 
+            {/* External Sources Panel */}
+            <ExternalSourcesPanel
+              accountPlanId={id}
+              accountSlug={account.account_name?.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 20) || id.slice(0, 8)}
+              slackChannelUrl={account.slack_channel_url}
+              jiraProjectUrl={account.jira_project_url}
+              asanaProjectUrl={account.asana_project_url}
+            />
+
             {/* Research Signals from AI */}
             <SignalsSection
               accountId={id}
@@ -696,6 +840,7 @@ export default async function AccountDetailPage({
         </div>
       </div>
     </div>
+    </AccountLayoutToggle>
   )
 }
 

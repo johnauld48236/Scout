@@ -17,11 +17,14 @@ interface Stakeholder {
   last_contact_date?: string
   reports_to_id?: string
   org_level?: number
+  is_placeholder?: boolean  // true = waypoint (role to find), false = confirmed contact
+  placeholder_role?: string  // Role description for waypoints
 }
 
 interface StakeholdersSectionProps {
   accountPlanId: string
   stakeholders: Stakeholder[]
+  useScoutTerminology?: boolean  // Use "Compass" instead of "Stakeholders"
 }
 
 function SentimentBadge({ sentiment }: { sentiment: string }) {
@@ -55,9 +58,17 @@ function EngagementIndicator({ level }: { level: string }) {
   )
 }
 
-export function StakeholdersSection({ accountPlanId, stakeholders }: StakeholdersSectionProps) {
+export function StakeholdersSection({ accountPlanId, stakeholders, useScoutTerminology = false }: StakeholdersSectionProps) {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingStakeholder, setEditingStakeholder] = useState<Stakeholder | null>(null)
+
+  const labels = useScoutTerminology
+    ? { section: 'Compass', confirmed: 'Confirmed', waypoint: 'Waypoints', add: '+ Add to Compass' }
+    : { section: 'Stakeholders', confirmed: 'Known Contacts', waypoint: 'Roles to Find', add: '+ Add Stakeholder' }
+
+  // Separate confirmed (is_placeholder=false) vs waypoints (is_placeholder=true)
+  const confirmed = stakeholders.filter(s => !s.is_placeholder)
+  const waypoints = stakeholders.filter(s => s.is_placeholder)
 
   const handleEdit = (stakeholder: Stakeholder) => {
     setEditingStakeholder(stakeholder)
@@ -69,84 +80,127 @@ export function StakeholdersSection({ accountPlanId, stakeholders }: Stakeholder
     setEditingStakeholder(null)
   }
 
+  const renderStakeholderCard = (stakeholder: Stakeholder) => (
+    <div
+      key={stakeholder.stakeholder_id}
+      className={`rounded-lg bg-white dark:bg-zinc-900 p-4 border transition-colors ${
+        stakeholder.is_placeholder
+          ? 'border-dashed border-orange-300 dark:border-orange-700 bg-orange-50/30 dark:bg-orange-900/10'
+          : 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700'
+      }`}
+    >
+      <div className="flex items-start justify-between">
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            {stakeholder.is_placeholder ? (
+              <span className="w-6 h-6 rounded-full bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 flex items-center justify-center text-xs">?</span>
+            ) : null}
+            <h3 className="font-medium text-zinc-900 dark:text-zinc-100">
+              {stakeholder.is_placeholder ? (stakeholder.placeholder_role || stakeholder.title || 'Role TBD') : stakeholder.full_name}
+            </h3>
+            {!stakeholder.is_placeholder && stakeholder.sentiment && (
+              <SentimentBadge sentiment={stakeholder.sentiment} />
+            )}
+            {stakeholder.is_placeholder && (
+              <span className="text-xs px-2 py-0.5 rounded bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400">
+                {useScoutTerminology ? 'Waypoint' : 'To Find'}
+              </span>
+            )}
+          </div>
+          {!stakeholder.is_placeholder && stakeholder.title && (
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
+              {stakeholder.title}{stakeholder.department ? ` · ${stakeholder.department}` : ''}
+            </p>
+          )}
+        </div>
+        <button
+          onClick={() => handleEdit(stakeholder)}
+          className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+          </svg>
+        </button>
+      </div>
+
+      {!stakeholder.is_placeholder && (
+        <>
+          <div className="flex items-center gap-3 mt-3 text-sm flex-wrap">
+            {stakeholder.role_type && (
+              <span className="px-2 py-1 bg-zinc-100 dark:bg-zinc-800 rounded text-zinc-600 dark:text-zinc-400">
+                {stakeholder.role_type.replace('_', ' ')}
+              </span>
+            )}
+            {stakeholder.engagement_level && (
+              <EngagementIndicator level={stakeholder.engagement_level} />
+            )}
+            {stakeholder.influence_score && (
+              <span className="text-zinc-500 dark:text-zinc-400">
+                Influence: {stakeholder.influence_score}/10
+              </span>
+            )}
+            {stakeholder.last_contact_date && (
+              <span className="text-zinc-500 dark:text-zinc-400">
+                Last: {new Date(stakeholder.last_contact_date).toLocaleDateString()}
+              </span>
+            )}
+          </div>
+
+          {stakeholder.email && (
+            <div className="mt-2">
+              <a href={`mailto:${stakeholder.email}`} className="text-sm text-blue-600 hover:underline">
+                {stakeholder.email}
+              </a>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+
   return (
     <section>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">
-          Stakeholders ({stakeholders.length})
+          {labels.section} ({stakeholders.length})
         </h2>
         <button
           onClick={() => setIsModalOpen(true)}
           className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors"
         >
-          + Add Stakeholder
+          {labels.add}
         </button>
       </div>
 
-      <div className="space-y-3">
-        {stakeholders.map((stakeholder) => (
-          <div
-            key={stakeholder.stakeholder_id}
-            className="rounded-lg bg-white dark:bg-zinc-900 p-4 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors"
-          >
-            <div className="flex items-start justify-between">
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <h3 className="font-medium text-zinc-900 dark:text-zinc-100">{stakeholder.full_name}</h3>
-                  {stakeholder.sentiment && (
-                    <SentimentBadge sentiment={stakeholder.sentiment} />
-                  )}
-                </div>
-                {stakeholder.title && (
-                  <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">
-                    {stakeholder.title}{stakeholder.department ? ` · ${stakeholder.department}` : ''}
-                  </p>
-                )}
-              </div>
-              <button
-                onClick={() => handleEdit(stakeholder)}
-                className="text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-300"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
-                </svg>
-              </button>
-            </div>
-
-            <div className="flex items-center gap-3 mt-3 text-sm flex-wrap">
-              {stakeholder.role_type && (
-                <span className="px-2 py-1 bg-zinc-100 dark:bg-zinc-800 rounded text-zinc-600 dark:text-zinc-400">
-                  {stakeholder.role_type.replace('_', ' ')}
-                </span>
-              )}
-              {stakeholder.engagement_level && (
-                <EngagementIndicator level={stakeholder.engagement_level} />
-              )}
-              {stakeholder.influence_score && (
-                <span className="text-zinc-500 dark:text-zinc-400">
-                  Influence: {stakeholder.influence_score}/10
-                </span>
-              )}
-              {stakeholder.last_contact_date && (
-                <span className="text-zinc-500 dark:text-zinc-400">
-                  Last: {new Date(stakeholder.last_contact_date).toLocaleDateString()}
-                </span>
-              )}
-            </div>
-
-            {stakeholder.email && (
-              <div className="mt-2">
-                <a href={`mailto:${stakeholder.email}`} className="text-sm text-blue-600 hover:underline">
-                  {stakeholder.email}
-                </a>
-              </div>
-            )}
+      {/* Confirmed contacts */}
+      {confirmed.length > 0 && (
+        <div className="mb-6">
+          <h3 className="text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-3">
+            {labels.confirmed} ({confirmed.length})
+          </h3>
+          <div className="space-y-3">
+            {confirmed.map(renderStakeholderCard)}
           </div>
-        ))}
-        {stakeholders.length === 0 && (
-          <p className="text-zinc-500 dark:text-zinc-400 text-sm py-4">No stakeholders mapped</p>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Waypoints (roles to find) */}
+      {waypoints.length > 0 && (
+        <div className="mb-4">
+          <h3 className="text-sm font-medium text-orange-600 dark:text-orange-400 mb-3">
+            {labels.waypoint} ({waypoints.length})
+          </h3>
+          <div className="space-y-3">
+            {waypoints.map(renderStakeholderCard)}
+          </div>
+        </div>
+      )}
+
+      {stakeholders.length === 0 && (
+        <p className="text-zinc-500 dark:text-zinc-400 text-sm py-4">
+          {useScoutTerminology ? 'Your compass is empty. Add confirmed contacts or waypoints to map.' : 'No stakeholders mapped'}
+        </p>
+      )}
 
       <StakeholderModal
         isOpen={isModalOpen}

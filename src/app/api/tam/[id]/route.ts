@@ -17,11 +17,12 @@ export async function PATCH(
     // Build update object with only provided fields
     const updateData: Record<string, unknown> = {}
 
+    // Note: 'industry' is NOT a column in tam_accounts - use 'vertical' instead
     const allowedFields = [
       'company_name',
       'website',
       'vertical',
-      'industry',
+      // 'industry' - NOT in tam_accounts table, mapped to vertical below
       'employee_count',
       'annual_revenue',
       'headquarters',
@@ -39,11 +40,18 @@ export async function PATCH(
       'campaign_ids',
       'compelling_events',
       'buying_signals',
+      'notes',
       // Promotion linkage
       'account_plan_id',
       'promoted_to_account_plan_id',
       'promoted_at',
     ]
+
+    // Map 'industry' to 'vertical' if provided (industry is not a TAM column)
+    if ('industry' in body && !('vertical' in body)) {
+      body.vertical = body.industry
+    }
+    delete body.industry
 
     for (const field of allowedFields) {
       if (field in body) {

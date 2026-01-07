@@ -108,13 +108,16 @@ const navigation = [
   { name: 'Weekly Review', href: '/weekly-review', icon: CalendarCheckIcon, section: 'main' },
   { name: 'Goals', href: '/goals', icon: GoalIcon, section: 'strategy' },
   { name: 'Campaigns', href: '/campaigns', icon: MegaphoneIcon, section: 'strategy' },
-  { name: 'Account Plans', href: '/accounts', icon: BuildingIcon, section: 'sales' },
+  // Scout terminology: Territories (was Account Plans)
+  { name: 'Territories', href: '/territories', icon: BuildingIcon, section: 'sales' },
   { name: 'Pursuits', href: '/pursuits', icon: TargetIcon, section: 'sales' },
-  { name: 'Stakeholders', href: '/stakeholders', icon: UsersIcon, section: 'sales' },
+  // Scout terminology: Compass (was Stakeholders) - global view
+  { name: 'Compass', href: '/stakeholders', icon: UsersIcon, section: 'sales' },
   { name: 'Action Items', href: '/actions', icon: ChecklistIcon, section: 'sales' },
-  { name: 'TAM Overview', href: '/tam', icon: ChartIcon, section: 'tam' },
-  { name: 'Gap Analysis', href: '/tam/gaps', icon: GapIcon, section: 'tam' },
-  { name: 'TAM List', href: '/tam/list', icon: ListIcon, section: 'tam' },
+  // Scout terminology: Landscape (was TAM)
+  { name: 'Landscape', href: '/landscape', icon: ChartIcon, section: 'landscape' },
+  { name: 'Landscape Gaps', href: '/landscape/gaps', icon: GapIcon, section: 'landscape' },
+  { name: 'Landscape Accounts', href: '/landscape/list', icon: ListIcon, section: 'landscape' },
   { name: 'Settings', href: '/settings', icon: CogIcon, section: 'settings' },
 ]
 
@@ -129,7 +132,7 @@ export function Sidebar() {
   const mainItems = navigation.filter(n => n.section === 'main')
   const strategyItems = navigation.filter(n => n.section === 'strategy')
   const salesItems = navigation.filter(n => n.section === 'sales')
-  const tamItems = navigation.filter(n => n.section === 'tam')
+  const landscapeItems = navigation.filter(n => n.section === 'landscape')
   const settingsItems = navigation.filter(n => n.section === 'settings')
 
   return (
@@ -201,11 +204,11 @@ export function Sidebar() {
           </div>
         </div>
 
-        {/* TAM Intelligence */}
+        {/* Landscape (was TAM Intelligence) */}
         <div className="mt-5">
-          <p className="px-2.5 text-[11px] font-medium uppercase tracking-wider mb-1.5" style={{ color: 'var(--sidebar-text-dimmed)' }}>Intelligence</p>
+          <p className="px-2.5 text-[11px] font-medium uppercase tracking-wider mb-1.5" style={{ color: 'var(--sidebar-text-dimmed)' }}>Landscape</p>
           <div className="space-y-0.5">
-            {tamItems.map((item) => (
+            {landscapeItems.map((item) => (
               <Link
                 key={item.name}
                 href={item.href}

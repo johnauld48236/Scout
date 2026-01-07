@@ -34,3 +34,10 @@ FROM information_schema.columns
 WHERE table_name = 'tam_accounts'
 AND column_name IN ('operating_regions', 'products_overview', 'regulatory_exposure', 'enrichment_status', 'enriched_at')
 ORDER BY column_name;
+
+-- Stakeholder enrichment fields
+ALTER TABLE stakeholders ADD COLUMN IF NOT EXISTS department VARCHAR(255);
+ALTER TABLE stakeholders ADD COLUMN IF NOT EXISTS influence_level VARCHAR(50);
+
+COMMENT ON COLUMN stakeholders.department IS 'Department or business unit the stakeholder belongs to';
+COMMENT ON COLUMN stakeholders.influence_level IS 'high, medium, or low influence on purchasing decisions';

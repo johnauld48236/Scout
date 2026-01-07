@@ -1,6 +1,9 @@
 import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
@@ -34,6 +37,9 @@ export async function POST(request: NextRequest) {
     if (body.week_number !== undefined && body.week_number !== null) {
       insertData.week_number = body.week_number
     }
+    // 30/60/90 bucket support
+    if (body.bucket) insertData.bucket = body.bucket
+    if (body.slip_acknowledged !== undefined) insertData.slip_acknowledged = body.slip_acknowledged
 
     const { data, error } = await supabase
       .from('action_items')
@@ -78,6 +84,9 @@ export async function PUT(request: NextRequest) {
     if (body.category !== undefined) updates.category = body.category
     if (body.week_number !== undefined) updates.week_number = body.week_number
     if (body.pursuit_id !== undefined) updates.pursuit_id = body.pursuit_id
+    // 30/60/90 bucket support
+    if (body.bucket !== undefined) updates.bucket = body.bucket
+    if (body.slip_acknowledged !== undefined) updates.slip_acknowledged = body.slip_acknowledged
 
     const { data, error } = await supabase
       .from('action_items')

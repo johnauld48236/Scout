@@ -1,32 +1,23 @@
-# CLAUDE.md - Scout Sales Intelligence Platform
+# Scout - AI-Powered Sales Intelligence Platform
 
-## READ THIS FIRST
+## CLAUDE.md v3 - Complete Architecture Reference
 
-This document is the **single source of truth** for the Scout application architecture.
-
-**IMPORTANT:** This document has two sections:
-- **CURRENT STATE** - What actually exists today. Use this for all code changes.
-- **PLANNED CHANGES** (at bottom) - Future improvements. Do NOT implement unless explicitly asked.
-
-Before making ANY changes:
-1. Read the relevant section of this document
-2. Follow the patterns and rules defined here
-3. Do NOT create duplicate components or tables
-4. Do NOT invent new patterns - use existing ones
-5. Run `npm run build` after changes
+**Last Updated:** 2026-01-06
+**Version:** 3.0 - Two-Vector Architecture, Spark Metrics, Health Scoring
 
 ---
 
-## Project Overview
+## PROJECT OVERVIEW
 
-Scout is a B2B sales intelligence platform for managing:
-- **Account Plans** - Strategic accounts with stakeholders, pursuits, and intelligence
-- **TAM (Target Account Model)** - Prospect pipeline and prioritization
-- **Pursuits** - Sales opportunities linked to accounts
-- **Weekly Reviews** - Forecasting and account health tracking
-- **Goals & Gap Analysis** - Revenue and new logo target tracking
+Scout is a B2B sales intelligence platform with a **two-vector architecture**:
+- **Vector Out (Sales):** Us looking at prospects - intelligence gathering, opportunity exploration, pursuit execution
+- **Vector In (Customer Success):** Their experience with us - issue tracking, pattern detection, resolution management
 
-### Tech Stack
+Both vectors share common infrastructure (accounts, stakeholders, corporate structure) but serve different purposes.
+
+---
+
+## TECH STACK
 
 | Component | Technology |
 |-----------|------------|
@@ -37,79 +28,142 @@ Scout is a B2B sales intelligence platform for managing:
 | Styling | Tailwind CSS 4 |
 | TypeScript | Strict mode enabled |
 
-### Commands
+---
+
+## CORE COMMANDS
 
 ```bash
-npm run dev      # Start development server (http://localhost:3000)
-npm run build    # Production build - USE THIS TO VERIFY CHANGES
-npm run lint     # Run ESLint
+npm run dev          # Start development server (http://localhost:3000)
+npm run build        # Build for production (RUN AFTER EVERY CHANGE)
+npm run lint         # Check for code issues
 ```
 
-**No test runner configured** - Always run `npm run build` to catch errors.
+**CRITICAL:** Always run `npm run build` after changes to catch TypeScript errors.
 
 ---
 
-## ⚠️ CRITICAL RULES
-
-### Before ANY Code Change:
-1. **Read the relevant files first** - Don't assume how things work
-2. **Identify cascade effects** - What else uses this code?
-3. **State your plan** - Tell the user what you're going to change and what might break
-4. **Don't create new components** when existing ones should be modified
-5. **Run `npm run build`** after changes to verify nothing breaks
-
-### Never Do These Things:
-- Create duplicate components - always check if one exists first
-- Mix up severity values between tables (see Business Rules section)
-- Modify the AI context builder without understanding all 4 layers
-- Delete or rename database columns without understanding FK cascades
-- Create new API routes when existing routes should be extended
-
----
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# CURRENT STATE - What actually exists today
-# ═══════════════════════════════════════════════════════════════════════════════
-
-## File Structure (CURRENT)
+## FILE STRUCTURE
 
 ```
 src/
-├── app/                    # Next.js App Router pages
-│   ├── accounts/           # Account plan pages
-│   ├── actions/            # Action items global view
-│   ├── api/                # API routes
-│   ├── campaigns/          # Campaign management
-│   ├── goals/              # Goals management
-│   ├── pursuits/           # Opportunities
-│   ├── settings/           # App settings
-│   ├── stakeholders/       # Contacts
-│   ├── tam/                # TAM Intelligence
-│   │   ├── page.tsx        # TAM Overview
-│   │   ├── list/           # TAM account list
-│   │   ├── [id]/           # TAM account detail
-│   │   └── gaps/           # Gap Analysis
-│   ├── weekly-review/      # Weekly review
-│   ├── layout.tsx          # Root layout
-│   └── page.tsx            # Dashboard
-├── components/             # React components
-│   ├── account/            # Account page components (38 files)
-│   ├── dashboard/          # Dashboard components
-│   ├── planning/           # Planning components
-│   ├── tam/                # TAM components
-│   ├── wizard/             # Account creation wizard (7 steps)
-│   └── ui/                 # Shared UI components
-├── lib/                    # Utilities and helpers
-│   ├── ai/                 # AI integration
-│   │   └── context/        # Context builder system
-│   ├── supabase/           # Supabase client
-│   └── utils/              # Shared utilities
-└── types/                  # TypeScript types
+├── app/
+│   ├── accounts/
+│   │   ├── [id]/
+│   │   │   ├── page.tsx           # Account plan page (classic + new view toggle)
+│   │   │   └── prototype/         # Two-vector prototype
+│   │   │       └── page.tsx
+│   │   └── page.tsx               # Accounts list
+│   ├── api/
+│   │   ├── ai/                    # AI enrichment endpoints
+│   │   ├── accounts/              # Account CRUD
+│   │   ├── action-items/          # Action item CRUD
+│   │   └── scout-themes/          # Spark CRUD
+│   ├── tam/                       # TAM intelligence pages
+│   ├── settings/                  # App settings
+│   └── weekly-review/             # Weekly review
+├── components/
+│   ├── account/                   # Account page components
+│   │   ├── AccountHealthBanner.tsx
+│   │   ├── AccountModeView.tsx
+│   │   ├── AccountLayoutToggle.tsx
+│   │   ├── DiscoveryMode.tsx
+│   │   ├── ExecutionMode.tsx
+│   │   ├── VectorOut/             # NEW: Vector Out prototype components
+│   │   │   ├── DiscoveryMode.tsx
+│   │   │   └── ExecutionMode.tsx
+│   │   └── VectorIn/              # NEW: Vector In prototype components
+│   │       ├── DiscoveryMode.tsx
+│   │       └── ExecutionMode.tsx
+│   ├── prototype/                 # Prototype-specific components
+│   │   ├── DataAnnotation.tsx
+│   │   ├── VectorTabs.tsx
+│   │   ├── PrototypeHealthBanner.tsx
+│   │   └── mockData.ts
+│   ├── dashboard/                 # Dashboard components
+│   │   ├── SparkCoverageMetrics.tsx   # TODO
+│   │   ├── HealthDistribution.tsx     # TODO
+│   │   └── ScoutActivityLayer.tsx     # TODO
+│   ├── enrichment/                # Enrichment workflow
+│   └── ui/                        # Shared UI components
+├── lib/
+│   ├── supabase/
+│   │   ├── client.ts
+│   │   └── server.ts
+│   ├── ai/
+│   │   └── context/               # AI context builder
+│   └── scoring/
+│       └── health-score.ts        # TODO: Health scoring logic
+└── types/
 ```
 
 ---
 
-## Data Model (CURRENT)
+## CRITICAL RULES
+
+### Before ANY Change
+
+1. Read relevant section of this CLAUDE.md
+2. Check if table/field exists in schema below
+3. Use exact enum values listed (lowercase)
+4. Run `npm run build` after changes
+
+### NEVER Do These
+
+- Create new tables without adding to this doc
+- Use wrong case for enum fields (always lowercase)
+- Delete data without explicit user confirmation
+- Modify JSONB structure without migration plan
+- Add fields to tables without updating this doc
+- Ignore TypeScript errors
+- Mix Vector Out and Vector In data without clear separation
+
+---
+
+## TWO-VECTOR ARCHITECTURE
+
+### Vector Out (Sales Intelligence)
+
+**Purpose:** Build intelligence about prospects to drive sales
+
+**Flow:**
+```
+Corporate Structure → Stakeholders → Signals → Sparks → CRM Deals → 30/60/90 Plan
+```
+
+**Key Entities:**
+- `scout_themes` (UI: "Sparks") - Exploratory opportunity themes
+- `pursuits` - Active sales opportunities
+- `action_items` - Execution tasks
+- `account_signals` - Market intelligence
+
+**User Personas:** Sales reps, AEs, Sales leadership
+
+### Vector In (Customer Success)
+
+**Purpose:** Track customer experience and resolve issues
+
+**Flow:**
+```
+Issues (Jira/Asana) → Patterns → Resolution Plans → Health Score
+```
+
+**Key Entities:**
+- `account_issues` - Imported from external systems
+- `patterns` - AI-identified recurring problems
+- `action_items` (vector='in') - Resolution actions
+
+**User Personas:** CSMs, Support, Product
+
+### Shared Entities (Both Vectors)
+
+- `account_plans` - Primary account records (everything flows through this)
+- `stakeholders` - People at accounts
+- `account_divisions` - Business units/divisions
+- `account_health_scores` - Unified health metrics
+
+---
+
+## DATABASE SCHEMA
 
 ### Core Tables
 
@@ -126,51 +180,127 @@ Primary table for managed accounts. **Everything flows through this.**
 | account_thesis | TEXT | Strategic positioning |
 | is_favorite | BOOLEAN | Default FALSE |
 | in_weekly_review | BOOLEAN | Default FALSE |
-| last_reviewed_at | TIMESTAMPTZ | When marked reviewed |
-| last_reviewed_by | VARCHAR(255) | Who reviewed |
-| business_units | JSONB | Corporate structure (array) |
-| milestones | JSONB | Planning milestones |
+| last_reviewed_at | TIMESTAMPTZ | |
+| last_reviewed_by | VARCHAR(255) | |
+| business_units | JSONB | DEPRECATED: Use account_divisions |
+| milestones | JSONB | DEPRECATED: Use buckets |
+| created_at | TIMESTAMPTZ | |
+| updated_at | TIMESTAMPTZ | |
 
 **Cascade behavior:** Deleting account_plan deletes ALL children.
 
+#### account_divisions
+
+| Column | Type | Notes |
+|--------|------|-------|
+| division_id | UUID | Primary key |
+| account_plan_id | UUID | FK → account_plans (CASCADE) |
+| name | VARCHAR(255) | Required |
+| description | TEXT | |
+| created_at | TIMESTAMPTZ | |
+
+#### stakeholders
+
+| Column | Type | Notes |
+|--------|------|-------|
+| stakeholder_id | UUID | Primary key |
+| account_plan_id | UUID | FK → account_plans (CASCADE) |
+| full_name | VARCHAR(255) | Required |
+| title | VARCHAR(255) | Job title |
+| email | VARCHAR(255) | |
+| phone | VARCHAR(50) | |
+| division_id | UUID | FK → account_divisions |
+| influence_level | VARCHAR(20) | 'high', 'medium', 'low' |
+| sentiment | VARCHAR(20) | 'champion', 'supporter', 'neutral', 'skeptic', 'blocker' |
+| created_at | TIMESTAMPTZ | |
+| updated_at | TIMESTAMPTZ | |
+
+### Sparks (Scout Themes)
+
+#### scout_themes (UI: "Sparks")
+
+| Column | Type | Notes |
+|--------|------|-------|
+| theme_id | UUID | Primary key |
+| account_plan_id | UUID | FK → account_plans (CASCADE) |
+| title | VARCHAR(255) | Required |
+| description | TEXT | |
+| why_it_matters | TEXT | |
+| size | VARCHAR(20) | 'high', 'medium', 'low' |
+| questions_to_explore | TEXT[] | |
+| status | VARCHAR(50) | 'exploring', 'linked', 'converted', 'closed' |
+| linked_pursuit_id | UUID | FK → pursuits (when linked to CRM deal) |
+| created_at | TIMESTAMPTZ | |
+| updated_at | TIMESTAMPTZ | |
+
+**Spark Status Lifecycle:**
+| Status | Meaning | Visual |
+|--------|---------|--------|
+| `exploring` | Scout theme, no CRM connection | Gray, floating |
+| `linked` | Associated to existing CRM Deal | Blue, connected |
+| `converted` | Spark became a new CRM Deal | Green, arrow down |
+| `closed` | Spark didn't pan out | Dimmed, archived |
+
+**Spark Sizing:**
+| Size | Meaning | Signals |
+|------|---------|---------|
+| `high` $$$ | Large potential, strategic fit | Multiple buying signals, exec sponsor |
+| `medium` $$ | Solid opportunity, worth pursuing | Some signals, clear contact |
+| `low` $ | Smaller scope, tactical | Single contact, unclear need |
+
+### Pursuits (CRM Deals)
+
 #### pursuits
-Sales opportunities linked to accounts.
 
 | Column | Type | Notes |
 |--------|------|-------|
 | pursuit_id | UUID | Primary key |
 | account_plan_id | UUID | FK → account_plans (CASCADE) |
 | name | VARCHAR(255) | Deal name |
-| stage | VARCHAR(50) | Sales stage |
+| stage | VARCHAR(50) | See stages below |
 | estimated_value | DECIMAL | Deal value |
-| probability | INTEGER | Win probability % |
+| probability | INTEGER | Win probability 0-100 |
 | expected_close_date | DATE | |
+| thesis | TEXT | Deal thesis |
 | business_unit_id | VARCHAR | References business_units JSONB |
+| created_at | TIMESTAMPTZ | |
+| updated_at | TIMESTAMPTZ | |
 
-#### stakeholders
-Contacts/people at accounts.
+**Pursuit Stages:**
+- `discovery`
+- `qualification`
+- `proposal`
+- `negotiation`
+- `closed_won`
+- `closed_lost`
+
+### Health Scoring
+
+#### account_health_scores (NEW)
 
 | Column | Type | Notes |
 |--------|------|-------|
-| stakeholder_id | UUID | Primary key |
+| health_score_id | UUID | Primary key |
 | account_plan_id | UUID | FK → account_plans (CASCADE) |
-| name | VARCHAR(255) | Required |
-| title | VARCHAR(255) | Job title |
-| email | VARCHAR(255) | |
-| phone | VARCHAR(50) | |
-| division_id | UUID | FK → account_divisions |
-| sentiment | VARCHAR(20) | Relationship health |
-| influence_level | VARCHAR(20) | 'high', 'medium', 'low' |
+| engagement_score | INTEGER | 0-25 points |
+| momentum_score | INTEGER | 0-25 points |
+| risk_score | INTEGER | 0-25 points |
+| intelligence_score | INTEGER | 0-25 points |
+| total_score | INTEGER | 0-100 (computed) |
+| health_band | VARCHAR(20) | 'healthy', 'monitor', 'at_risk', 'critical' |
+| score_inputs | JSONB | Raw inputs for learning |
+| calculated_at | TIMESTAMPTZ | |
+| created_at | TIMESTAMPTZ | |
 
-#### pursuit_stakeholders (Junction Table)
-Links stakeholders to specific pursuits.
+**Health Bands:**
+| Score Range | Band | Color |
+|-------------|------|-------|
+| 80-100 | `healthy` | Green |
+| 60-79 | `monitor` | Yellow |
+| 40-59 | `at_risk` | Orange |
+| 0-39 | `critical` | Red |
 
-| Column | Type | Notes |
-|--------|------|-------|
-| pursuit_stakeholder_id | UUID | Primary key |
-| pursuit_id | UUID | FK → pursuits |
-| stakeholder_id | UUID | FK → stakeholders |
-| role | VARCHAR(100) | Buyer role |
+### Execution Tracking
 
 #### action_items
 
@@ -181,14 +311,26 @@ Links stakeholders to specific pursuits.
 | pursuit_id | UUID | FK → pursuits (SET NULL) |
 | title | VARCHAR(500) | Required |
 | description | TEXT | |
-| owner | VARCHAR(255) | Text field |
-| due_date | DATE | **This is due_date, not target_date** |
-| priority | VARCHAR(50) | 'Critical', 'High', 'Medium', 'Low' |
-| status | VARCHAR(50) | See valid values below |
+| owner | VARCHAR(255) | |
+| due_date | DATE | |
+| priority | VARCHAR(50) | 'high', 'medium', 'low' |
+| status | VARCHAR(50) | 'pending', 'in_progress', 'completed', 'blocked' |
+| vector | VARCHAR(10) | 'out' (sales), 'in' (customer success) |
 | needs_review | BOOLEAN | AI-imported pending review |
-| milestone_period | VARCHAR(10) | 'day_30', 'day_60', 'day_90' |
-| bant_dimension | VARCHAR(1) | 'B', 'A', 'N', or 'T' |
-| risk_id | UUID | FK → risks |
+| created_at | TIMESTAMPTZ | |
+| updated_at | TIMESTAMPTZ | |
+
+#### buckets (30/60/90 Tracker)
+
+| Column | Type | Notes |
+|--------|------|-------|
+| bucket_id | UUID | Primary key |
+| account_plan_id | UUID | FK → account_plans (CASCADE) |
+| name | VARCHAR(255) | Custom milestone name |
+| target_date | DATE | |
+| status | VARCHAR(50) | 'active', 'completed' |
+
+### Risks
 
 #### risks
 
@@ -199,14 +341,13 @@ Links stakeholders to specific pursuits.
 | pursuit_id | UUID | FK → pursuits (SET NULL) |
 | title | VARCHAR(255) | Required |
 | description | TEXT | |
-| severity | VARCHAR(20) | **'low', 'medium', 'high', 'critical'** |
-| status | VARCHAR(50) | 'open', 'mitigated', 'closed' |
-| target_date | DATE | For tracker scheduling |
+| severity | VARCHAR(20) | 'low', 'medium', 'high', 'critical' |
+| status | VARCHAR(50) | 'open', 'mitigating', 'resolved', 'accepted' |
+| target_date | DATE | |
 | needs_review | BOOLEAN | |
 | deleted_at | TIMESTAMPTZ | Soft delete |
 
 #### pain_points
-**ACTIVE TABLE** - Used for prospect needs and customer issues.
 
 | Column | Type | Notes |
 |--------|------|-------|
@@ -216,13 +357,14 @@ Links stakeholders to specific pursuits.
 | stakeholder_id | UUID | FK → stakeholders (SET NULL) |
 | title | VARCHAR(255) | Required |
 | description | TEXT | |
-| severity | VARCHAR(20) | **'critical', 'significant', 'moderate', 'minor'** |
+| severity | VARCHAR(20) | 'critical', 'significant', 'moderate', 'minor' |
 | status | VARCHAR(50) | |
-| target_date | DATE | For tracker scheduling |
+| vector | VARCHAR(10) | 'out' (sales opp), 'in' (customer issue) |
+| target_date | DATE | |
 | needs_review | BOOLEAN | |
 | deleted_at | TIMESTAMPTZ | Soft delete |
 
-### TAM Tables
+### TAM Intelligence
 
 #### tam_accounts
 
@@ -233,15 +375,17 @@ Links stakeholders to specific pursuits.
 | website | VARCHAR(255) | |
 | vertical | VARCHAR(100) | |
 | headquarters | VARCHAR(255) | |
+| employee_count | INTEGER | |
 | fit_tier | VARCHAR(10) | 'A', 'B', 'C' |
 | priority_score | INTEGER | 0-100 |
 | estimated_deal_value | DECIMAL | |
-| status | VARCHAR(50) | 'New', 'Qualified', 'Researching', 'Pursuing', 'Promoted' |
+| status | VARCHAR(50) | 'new', 'qualified', 'researching', 'pursuing', 'promoted' |
 | promoted_to_account_plan_id | UUID | When promoted |
-| compelling_events | JSONB | |
-| buying_signals | JSONB | |
 | account_thesis | TEXT | |
 | campaign_ids | UUID[] | |
+| notes | TEXT | |
+| created_at | TIMESTAMPTZ | |
+| updated_at | TIMESTAMPTZ | |
 
 #### account_signals
 
@@ -252,86 +396,299 @@ Links stakeholders to specific pursuits.
 | account_plan_id | UUID | FK → account_plans (can be NULL) |
 | signal_type | VARCHAR(100) | |
 | title | VARCHAR(255) | |
+| summary | TEXT | |
 | signal_date | DATE | |
 | source | VARCHAR(255) | URL |
-| summary | TEXT | |
 | confidence | VARCHAR(20) | 'high', 'medium', 'low' |
 
-### Supporting Tables
+### Vector In Tables (Customer Success)
 
-#### account_divisions
+#### account_issues
 
 | Column | Type | Notes |
 |--------|------|-------|
-| division_id | UUID | Primary key |
+| issue_id | UUID | Primary key |
 | account_plan_id | UUID | FK → account_plans (CASCADE) |
-| name | VARCHAR(255) | Required |
+| external_id | VARCHAR(255) | Jira/Asana/Monday ID |
+| source | VARCHAR(50) | 'jira', 'asana', 'monday', 'zendesk', 'manual' |
+| title | VARCHAR(500) | Required |
 | description | TEXT | |
+| priority | VARCHAR(50) | 'p1', 'p2', 'p3' or 'high', 'medium', 'low' |
+| status | VARCHAR(100) | 'open', 'in_progress', 'resolved', 'closed' |
+| assignee | VARCHAR(255) | |
+| reporter | VARCHAR(255) | |
+| stakeholder_id | UUID | FK → stakeholders (SET NULL) |
+| pattern_id | UUID | FK → patterns (SET NULL) |
+| created_date | DATE | |
+| resolved_date | DATE | |
+| raw_data | JSONB | Original data from source |
+| created_at | TIMESTAMPTZ | |
+| updated_at | TIMESTAMPTZ | |
 
-#### buckets
+#### patterns
 
 | Column | Type | Notes |
 |--------|------|-------|
-| bucket_id | UUID | Primary key |
+| pattern_id | UUID | Primary key |
 | account_plan_id | UUID | FK → account_plans (CASCADE) |
-| name | VARCHAR(255) | Required |
-| target_date | DATE | |
-| status | VARCHAR(50) | 'active', 'completed' |
-
-#### weekly_snapshots
-
-| Column | Type | Notes |
-|--------|------|-------|
-| snapshot_id | UUID | Primary key |
-| account_plan_id | UUID | FK → account_plans (CASCADE) |
-| snapshot_week | DATE | Monday of week |
-| pipeline_value | NUMERIC | |
-| opportunity_count | INTEGER | |
-| stakeholder_count | INTEGER | |
-| open_risk_count | INTEGER | |
-| overdue_action_count | INTEGER | |
-| bant_summary | JSONB | |
+| title | VARCHAR(255) | Required |
+| description | TEXT | |
+| pattern_type | VARCHAR(50) | 'recurring', 'escalating', 'spreading', 'sentiment' |
+| severity | VARCHAR(20) | 'low', 'medium', 'high', 'critical' |
+| related_issues | UUID[] | References account_issues |
+| status | VARCHAR(50) | 'active', 'addressed', 'monitoring', 'resolved' |
+| created_at | TIMESTAMPTZ | |
+| updated_at | TIMESTAMPTZ | |
 
 ---
 
-## Business Rules (CURRENT)
+## SPARK METRICS SYSTEM
 
-### SEVERITY VALUES (CRITICAL - Different by Table)
+### Key Metrics
+
+| Metric | Calculation | Purpose |
+|--------|-------------|---------|
+| **Sparks Active** | COUNT(scout_themes WHERE status IN ('exploring', 'linked')) | Activity level |
+| **Revenue Under Intelligence** | SUM(pursuits.value WHERE pursuit has linked spark) | Quality of pipeline coverage |
+| **Pipeline Coverage %** | (Deals with Sparks / Total pipeline deals) × 100 | Are we flying blind? |
+| **TAM Accounts Available** | COUNT(tam_accounts not yet enriched) | Growth opportunity |
+
+### Dashboard Queries
+
+```sql
+-- Sparks Active
+SELECT COUNT(*) FROM scout_themes
+WHERE status IN ('exploring', 'linked');
+
+-- Revenue Under Intelligence
+SELECT SUM(p.estimated_value)
+FROM pursuits p
+JOIN scout_themes st ON st.linked_pursuit_id = p.pursuit_id
+WHERE st.status = 'linked';
+
+-- Pipeline Coverage
+SELECT
+  (SELECT COUNT(*) FROM pursuits WHERE pursuit_id IN
+    (SELECT linked_pursuit_id FROM scout_themes WHERE status = 'linked')
+  ) * 100.0 /
+  NULLIF((SELECT COUNT(*) FROM pursuits WHERE stage NOT IN ('closed_won', 'closed_lost')), 0)
+AS coverage_percent;
+
+-- Health Distribution
+SELECT health_band, COUNT(*)
+FROM account_health_scores
+GROUP BY health_band;
+```
+
+---
+
+## HEALTH SCORING SYSTEM
+
+### Philosophy
+
+Start with observable signals, weight simply, learn patterns, refine later.
+
+### Component Weights
+
+| Component | Max Points | What It Measures |
+|-----------|------------|------------------|
+| **Engagement** | 25 | Recency and frequency of contact |
+| **Momentum** | 25 | Deal stage movement (advancing vs stalling) |
+| **Risk Load** | 25 | Inverse of open risks (fewer = better) |
+| **Intelligence** | 25 | Spark coverage, stakeholder mapping, signals |
+
+### Scoring Functions
+
+```typescript
+// lib/scoring/health-score.ts
+
+interface HealthInputs {
+  engagement: {
+    days_since_contact: number;
+    contact_count_30d: number;
+  };
+  momentum: {
+    stage_movement: number; // -3 to +3
+  };
+  risk: {
+    open_risks: number;
+    critical_risks: number;
+  };
+  intelligence: {
+    sparks_count: number;
+    stakeholders_mapped: number;
+    signals_30d: number;
+  };
+}
+
+function calculateEngagementScore(inputs: HealthInputs['engagement']): number {
+  // 0-14 days = full points, decays from there
+  const recencyScore = Math.max(0, 15 - (inputs.days_since_contact / 2));
+  const frequencyScore = Math.min(10, inputs.contact_count_30d * 2);
+  return Math.min(25, recencyScore + frequencyScore);
+}
+
+function calculateMomentumScore(inputs: HealthInputs['momentum']): number {
+  // -3 to +3 movement maps to 0-25
+  return Math.max(0, Math.min(25, 12.5 + (inputs.stage_movement * 4)));
+}
+
+function calculateRiskScore(inputs: HealthInputs['risk']): number {
+  // Inverse: 0 risks = 25, 5+ risks = 0
+  const riskPenalty = inputs.open_risks * 4 + inputs.critical_risks * 3;
+  return Math.max(0, 25 - riskPenalty);
+}
+
+function calculateIntelligenceScore(inputs: HealthInputs['intelligence']): number {
+  const sparkScore = Math.min(10, inputs.sparks_count * 3);
+  const stakeholderScore = Math.min(10, inputs.stakeholders_mapped);
+  const signalScore = Math.min(5, inputs.signals_30d);
+  return sparkScore + stakeholderScore + signalScore;
+}
+
+function getHealthBand(totalScore: number): string {
+  if (totalScore >= 80) return 'healthy';
+  if (totalScore >= 60) return 'monitor';
+  if (totalScore >= 40) return 'at_risk';
+  return 'critical';
+}
+```
+
+---
+
+## SPARK-TO-DEAL LINKING
+
+### UI Pattern
 
 ```
-risks table:       'low', 'medium', 'high', 'critical'
-pain_points table: 'critical', 'significant', 'moderate', 'minor'
+┌─────────────────────────────────────────────────────────────────┐
+│  SPARK: Enterprise Security Platform Expansion                  │
+│  Size: $$$ High                                                 │
+├─────────────────────────────────────────────────────────────────┤
+│  Link to CRM Deal: [Select Deal ▼]                             │
+│                    ┌────────────────────────────────────┐      │
+│                    │ ○ Q1 Security Renewal - $180K     │      │
+│                    │ ○ Platform Expansion - $250K      │      │
+│                    │ ○ New Module Add-on - $75K        │      │
+│                    │ ─────────────────────────         │      │
+│                    │ + Create New CRM Deal             │      │
+│                    └────────────────────────────────────┘      │
+│                                                                 │
+│  Status: ○ Exploring  ◉ Linked  ○ Converted  ○ Closed         │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-**DO NOT MIX THESE.** Using wrong values breaks queries silently.
+### Linking Logic
 
-### Valid Status Values
+```typescript
+async function linkSparkToDeal(sparkId: string, pursuitId: string) {
+  await supabase
+    .from('scout_themes')
+    .update({
+      linked_pursuit_id: pursuitId,
+      status: 'linked',
+      updated_at: new Date().toISOString()
+    })
+    .eq('theme_id', sparkId);
+}
 
-| Table | Valid Values |
-|-------|--------------|
-| action_items | 'Not Started', 'In_Progress', 'Completed', 'Cancelled', 'Blocked' |
-| risks | 'open', 'mitigated', 'closed' |
-| pursuits | 'Discovery', 'Qualification', 'Proposal', 'Negotiation', 'Closed_Won', 'Closed_Lost' |
-| tam_accounts | 'New', 'Qualified', 'Researching', 'Pursuing', 'Promoted' |
-| buckets | 'active', 'completed' |
+async function convertSparkToDeal(sparkId: string, newDealData: Partial<Pursuit>) {
+  // Create new pursuit
+  const { data: newDeal } = await supabase
+    .from('pursuits')
+    .insert(newDealData)
+    .select()
+    .single();
 
-### Foreign Key Cascade Behavior
+  // Link and update status
+  await supabase
+    .from('scout_themes')
+    .update({
+      linked_pursuit_id: newDeal.pursuit_id,
+      status: 'converted',
+      updated_at: new Date().toISOString()
+    })
+    .eq('theme_id', sparkId);
 
-| Parent Deleted | Child Behavior |
-|----------------|----------------|
-| account_plan | ALL children deleted (CASCADE) |
-| pursuit | action_items.pursuit_id → NULL, pursuit_stakeholders deleted |
-| stakeholder | pursuit_stakeholders deleted, pain_points.stakeholder_id → NULL |
+  return newDeal;
+}
+```
 
-### Supabase Query Pattern (CRITICAL)
+---
+
+## VALID ENUM VALUES (All Lowercase)
+
+### Spark Status
+```typescript
+const SPARK_STATUS = ['exploring', 'linked', 'converted', 'closed'] as const;
+```
+
+### Spark Size
+```typescript
+const SPARK_SIZE = ['high', 'medium', 'low'] as const;
+```
+
+### Health Bands
+```typescript
+const HEALTH_BANDS = ['healthy', 'monitor', 'at_risk', 'critical'] as const;
+```
+
+### Pursuit Stages
+```typescript
+const PURSUIT_STAGES = [
+  'discovery', 'qualification', 'proposal',
+  'negotiation', 'closed_won', 'closed_lost'
+] as const;
+```
+
+### Action Item Status
+```typescript
+const ACTION_STATUS = ['pending', 'in_progress', 'completed', 'blocked'] as const;
+```
+
+### Action Item Priority
+```typescript
+const PRIORITY = ['high', 'medium', 'low'] as const;
+```
+
+### Risk Severity
+```typescript
+const RISK_SEVERITY = ['low', 'medium', 'high', 'critical'] as const;
+```
+
+### Risk Status
+```typescript
+const RISK_STATUS = ['open', 'mitigating', 'resolved', 'accepted'] as const;
+```
+
+### Pain Point Severity
+```typescript
+const PAIN_POINT_SEVERITY = ['critical', 'significant', 'moderate', 'minor'] as const;
+```
+
+### Pattern Types (Vector In)
+```typescript
+const PATTERN_TYPES = ['recurring', 'escalating', 'spreading', 'sentiment'] as const;
+```
+
+### TAM Account Status
+```typescript
+const TAM_STATUS = ['new', 'qualified', 'researching', 'pursuing', 'promoted'] as const;
+```
+
+---
+
+## COMMON PATTERNS
+
+### Supabase Query Pattern (Explicit FK)
 
 When tables have multiple FKs, specify which one:
 
 ```typescript
-// ❌ WRONG - causes "ambiguous relationship" error
+// WRONG - causes "ambiguous relationship" error
 supabase.from('pain_points').select('*, pursuits(name)')
 
-// ✅ CORRECT - explicit foreign key
+// CORRECT - explicit foreign key
 supabase.from('pain_points').select('*, pursuits!pursuit_id(name)')
 ```
 
@@ -350,204 +707,52 @@ Items with `needs_review = true` are HIDDEN from account page views.
 
 ---
 
-## Workflows (CURRENT)
+## PROTOTYPE vs PRODUCTION
 
-### Account Plan Creation (7-Step Wizard)
-
-**Location:** `/src/components/wizard/AccountPlanWizard.tsx`
-
-**Steps:**
-1. Step1AccountBasics - Company info
-2. Step2Research - AI enrichment
-3. Step3Stakeholders - Add contacts
-4. Step4Opportunities - Create pursuits
-5. Step5Competitors - Competitive landscape
-6. Step6Strategy - Account strategy
-7. Step7Actions - Initial action items
-
-### Notes Import Flow
-
-**Location:** `/src/components/account/ImportMeetingNotes.tsx`
-
-1. User pastes meeting notes
-2. AI extracts: action items, risks, pain points, stakeholders
-3. Items created with `needs_review = true`
-4. User reviews in Review Queue
-5. Accept → `needs_review = false` → Shows on account page
-6. Reject → `deleted_at = NOW()` → Soft deleted
-
-### Review Queue Pattern
-
+### Prototype Route
 ```
-AI Import → needs_review = true → Hidden from main views
-                    ↓
-              Review Queue
-                    ↓
-Accept → needs_review = false → Visible
-Reject → deleted_at = NOW() → Soft deleted
+/accounts/[id]/prototype
+```
+- Uses mock data
+- Shows data annotations
+- Tests two-vector architecture
+
+### Production Routes
+```
+/accounts/[id]              # Classic + New View toggle
+/accounts/[id]/prototype    # Design validation
 ```
 
 ---
 
-## AI Context System (CURRENT)
+## PENDING MIGRATIONS
 
-**Location:** `/src/lib/ai/context/builder.ts`
+### Priority 1: Health Scoring
+- [ ] Create `account_health_scores` table
+- [ ] Add indexes for dashboard queries
 
-### 4-Layer Context Stack
+### Priority 2: Spark Linking
+- [ ] Add `linked_pursuit_id` to `scout_themes`
+- [ ] Update `status` enum values in `scout_themes`
 
-```
-Layer 1: Company Context (company_profile)
-Layer 2: Campaign Context (campaigns via campaign_ids)
-Layer 3: Account Context (account_plans + related data)
-Layer 4: Platform Context (aggregated metrics)
-```
-
-### AI Entry Points
-
-| Endpoint | Purpose |
-|----------|---------|
-| `/api/ai/chat` | Conversational AI |
-| `/api/ai/research` | Company research |
-| `/api/ai/research-people` | Find stakeholders |
-| `/api/ai/parse-notes` | Extract from meeting notes |
-| `/api/ai/suggestions` | Proactive suggestions |
-| `/api/ai/planning-wizard` | Planning assistance |
+### Priority 3: Enum Cleanup
+- [ ] Migrate existing data to lowercase enums
+- [ ] Update API endpoints to use lowercase
 
 ---
 
-## Components (CURRENT)
+## SUCCESS CRITERIA
 
-### Active Components
+The build is successful when:
 
-| Component | Location | Purpose |
-|-----------|----------|---------|
-| AccountPlanWizard | /components/wizard/ | 7-step account creation |
-| RollingTracker | /components/account/ | 30/60/90 tracker |
-| ActionItemsSection | /components/ | Action items table |
-| StakeholderSection | /components/account/ | Stakeholders management |
-| PainPointsSection | /components/account/ | Pain points list |
-| RisksSection | /components/account/ | Risks table |
-| ImportMeetingNotes | /components/account/ | Notes import |
-
-### Before Creating New Components
-
-1. Search first: `find src -name "*ComponentName*"`
-2. Check this document
-3. Ask if unsure
+1. Dashboard shows Spark metrics (active count, revenue under intelligence, coverage %)
+2. Account pages show health score badge
+3. Sparks can be linked to CRM deals via dropdown
+4. Pipeline views show coverage indicators (⚡/○)
+5. Health scores calculate and cache correctly
+6. All TypeScript compiles (`npm run build` passes)
+7. Prototype route works at `/accounts/[id]/prototype`
 
 ---
 
-## Common Mistakes (DO NOT DO)
-
-### ❌ Wrong Severity Values
-```typescript
-// WRONG
-await supabase.from('risks').insert({ severity: 'significant' })
-await supabase.from('pain_points').insert({ severity: 'high' })
-
-// CORRECT
-await supabase.from('risks').insert({ severity: 'critical' })
-await supabase.from('pain_points').insert({ severity: 'critical' })
-```
-
-### ❌ Ambiguous Foreign Key Queries
-```typescript
-// WRONG
-.select('*, pursuits(*)')
-
-// CORRECT
-.select('*, pursuits!pursuit_id(*)')
-```
-
-### ❌ Forgetting Soft Delete Filter
-```typescript
-// Always add for tables with deleted_at
-.is('deleted_at', null)
-```
-
-### ❌ Creating Duplicate Components
-Search first before creating anything new.
-
----
-
-## Environment Variables
-
-**Required:**
-```
-NEXT_PUBLIC_SUPABASE_URL=
-NEXT_PUBLIC_SUPABASE_ANON_KEY=
-ANTHROPIC_API_KEY=
-```
-
-**Optional:**
-```
-HUBSPOT_ACCESS_TOKEN=
-HUBSPOT_PORTAL_ID=
-```
-
----
-
-# ═══════════════════════════════════════════════════════════════════════════════
-# PLANNED CHANGES - Do NOT implement unless explicitly asked
-# ═══════════════════════════════════════════════════════════════════════════════
-
-The following changes are PLANNED but NOT YET IMPLEMENTED.
-
-## Planned: TAM Account Enrichment
-
-**New fields to add to tam_accounts:**
-- `operating_regions` TEXT[]
-- `products_overview` TEXT
-- `regulatory_exposure` TEXT[]
-- `enrichment_status` VARCHAR
-- `enriched_at` TIMESTAMPTZ
-
-**Status:** NOT IMPLEMENTED
-
-## Planned: Intelligence Polarity Split
-
-**Problem:** `pain_points` table used for both prospect opportunities AND customer complaints.
-
-**Planned:** Split into:
-- `customer_needs` - Prospect pain points (POSITIVE - sales opportunities)
-- `platform_issues` - Customer complaints (NEGATIVE - problems to fix)
-
-**Status:** NOT IMPLEMENTED. Continue using `pain_points` table.
-
-## Planned: BANT Stakeholder Mapping
-
-**New fields for pursuit_stakeholders:**
-- `buyer_personas` JSONB
-- `deal_sentiment` VARCHAR
-- `bant_impact` JSONB
-- `influence_level` VARCHAR
-
-**Status:** NOT IMPLEMENTED
-
-## Planned: Action Items Changes
-
-- Rename `due_date` → `target_date`
-- Add `stakeholder_id` FK
-- Remove `milestone_period`
-
-**Status:** NOT IMPLEMENTED. Continue using `due_date`.
-
-## Planned: Division Unification
-
-Migrate `account_plans.business_units` JSONB → `account_divisions` table.
-
-**Status:** NOT IMPLEMENTED. Both systems still in use.
-
----
-
-## Implementation Order (When Ready)
-
-1. **TAM Enrichment** - Add fields, build API (isolated, low risk)
-2. **Intelligence Polarity** - Create tables, migrate data
-3. **BANT Stakeholder Mapping** - Add fields
-4. **Action Items** - Rename field, add to tracker
-5. **Division Unification** - Migrate data
-
----
-
-*Last updated: 2026-01-05*
+*END OF CLAUDE.md v3*

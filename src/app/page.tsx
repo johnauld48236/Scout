@@ -3,6 +3,10 @@ import { ARRGoalHero } from '@/components/dashboard/ARRGoalHero'
 import { IntelligenceSummary } from '@/components/dashboard/IntelligenceSummary'
 import { AttentionRequired } from '@/components/dashboard/AttentionRequired'
 import { GoalsProgress } from '@/components/dashboard/GoalsProgress'
+import { ScoutActivityLayer } from '@/components/dashboard/ScoutActivityLayer'
+import { ScoutHealthMetrics } from '@/components/dashboard/ScoutHealthMetrics'
+import { CollapsibleSection, CompactARRSummary } from '@/components/dashboard/CollapsibleSection'
+import type { HealthBand } from '@/lib/scoring/health-score'
 
 const STAGE_PROBABILITIES: Record<string, number> = {
   Discovery: 0.1,
@@ -69,6 +73,12 @@ export default async function Dashboard() {
       .from('account_signals')
       .select('signal_id, signal_date')
       .gte('signal_date', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]),
+
+    // Spark metrics (from view)
+    supabase.from('spark_metrics').select('*').single(),
+
+    // Health distribution (from view)
+    supabase.from('health_distribution').select('*'),
   ])
 
   const goals = goalsRes.data || []
@@ -77,6 +87,50 @@ export default async function Dashboard() {
   const overdueActions = actionsRes.data || []
   const tamAccounts = tamAccountsRes.data || []
   const recentSignals = signalsRes.data || []
+
+  // Spark metrics and health distribution (may not exist until migration runs)
+  const sparkMetricsRes = await supabase.from('spark_metrics').select('*').single()
+  const healthDistRes = await supabase.from('health_distribution').select('*')
+
+  // Build spark metrics object (with defaults if view doesn't exist)
+  const sparkMetrics = sparkMetricsRes.data ? {
+    sparksActive: sparkMetricsRes.data.sparks_active || 0,
+    sparksConverted: sparkMetricsRes.data.sparks_converted || 0,
+    sparksLinked: sparkMetricsRes.data.sparks_linked || 0,
+    pipelineCreated: sparkMetricsRes.data.pipeline_created || 0,
+    pipelineEnriched: sparkMetricsRes.data.pipeline_enriched || 0,
+    totalPipelineValue: sparkMetricsRes.data.total_pipeline_value || 0,
+    coveredDealsCount: sparkMetricsRes.data.covered_deals_count || 0,
+    totalDealsCount: sparkMetricsRes.data.total_deals_count || 0,
+    tamAccountsAvailable: sparkMetricsRes.data.tam_accounts_available || 0,
+    tamAccountsEnriched: sparkMetricsRes.data.tam_accounts_enriched || 0,
+    tamAccountsTotal: sparkMetricsRes.data.tam_accounts_total || 0,
+  } : {
+    sparksActive: 0,
+    sparksConverted: 0,
+    sparksLinked: 0,
+    pipelineCreated: 0,
+    pipelineEnriched: 0,
+    totalPipelineValue: 0,
+    coveredDealsCount: 0,
+    totalDealsCount: 0,
+    tamAccountsAvailable: tamAccounts.length,
+    tamAccountsEnriched: 0,
+    tamAccountsTotal: tamAccounts.length,
+  }
+
+  // Build health distribution (with defaults)
+  const healthDistribution: Record<HealthBand, number> = {
+    healthy: 0,
+    monitor: 0,
+    at_risk: 0,
+    critical: 0,
+  }
+  healthDistRes.data?.forEach((row: { health_band: string; count: number }) => {
+    if (row.health_band in healthDistribution) {
+      healthDistribution[row.health_band as HealthBand] = row.count
+    }
+  })
 
   // ==========================================
   // ARR GOAL HERO DATA
@@ -333,8 +387,14 @@ export default async function Dashboard() {
     ...logoGoals.slice(0, 2)       // Logo/customer count goals
   ].filter(Boolean) as typeof goals
 
+  // Calculate gap
+  const arrGap = Math.max(0, arrTarget - totalWeightedPipeline)
+
+  // At risk accounts from health distribution
+  const atRiskAccounts = healthDistribution.at_risk + healthDistribution.critical
+
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-6 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -347,18 +407,51 @@ export default async function Dashboard() {
         </div>
       </div>
 
-      {/* ARR Goal Hero */}
-      <ARRGoalHero
-        arrTarget={arrTarget}
-        renewalsConfirmed={renewalsConfirmed}
-        categories={arrCategories}
-        totalClosed={closedWonValue}
-        totalPipeline={totalPipeline}
-        totalWeightedPipeline={totalWeightedPipeline}
-        pipelineByStage={stageData}
+      {/* 1. SCOUT HEALTH METRICS - Top of page */}
+      <ScoutHealthMetrics
+        sparksActive={sparkMetrics.sparksActive}
+        pipelineCoverage={sparkMetrics.totalDealsCount > 0 ? (sparkMetrics.coveredDealsCount / sparkMetrics.totalDealsCount) * 100 : 0}
+        dealsWithCoverage={sparkMetrics.coveredDealsCount}
+        totalDeals={sparkMetrics.totalDealsCount}
+        healthyAccounts={healthDistribution.healthy}
+        atRiskAccounts={atRiskAccounts}
+        overdueActions={overdueActions.length}
       />
 
-      {/* Intelligence Summary */}
+      {/* 2. SCOUT INTELLIGENCE IMPACT - Moved UP (hero section) */}
+      <ScoutActivityLayer
+        sparkMetrics={sparkMetrics}
+        healthDistribution={healthDistribution}
+      />
+
+      {/* 3. ARR GOAL - Collapsible CRM Section */}
+      <CollapsibleSection
+        title="2026 ARR Goal"
+        subtitle="CRM Pipeline & Revenue Targets"
+        defaultExpanded={true}
+        headerContent={
+          <CompactARRSummary
+            arrTarget={arrTarget}
+            totalWeightedPipeline={totalWeightedPipeline}
+            gap={arrGap}
+            recurring={recurringPipelineValue}
+            upsell={pursuitsByType['upsell']?.pipeline || 0}
+            newBiz={pursuitsByType['new_business']?.pipeline || 0}
+          />
+        }
+      >
+        <ARRGoalHero
+          arrTarget={arrTarget}
+          renewalsConfirmed={renewalsConfirmed}
+          categories={arrCategories}
+          totalClosed={closedWonValue}
+          totalPipeline={totalPipeline}
+          totalWeightedPipeline={totalWeightedPipeline}
+          pipelineByStage={stageData}
+        />
+      </CollapsibleSection>
+
+      {/* 4. Intelligence Summary - Pipeline Coverage + TAM */}
       <IntelligenceSummary
         tamAccountCount={tamAccounts.length}
         highPriorityCount={highPriorityTam}
@@ -371,7 +464,7 @@ export default async function Dashboard() {
         upsellGap={upsellGap}
       />
 
-      {/* Bottom Row: Goals + Attention */}
+      {/* 5. Bottom Row: Goals + Attention */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <GoalsProgress goals={displayGoals} />
         <AttentionRequired

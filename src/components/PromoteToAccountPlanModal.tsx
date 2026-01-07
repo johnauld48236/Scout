@@ -22,9 +22,13 @@ interface PromoteToAccountPlanModalProps {
   campaigns: Campaign[]
   onClose: () => void
   onSuccess: () => void
+  useScoutTerminology?: boolean  // Use "Establish Territory" instead of "Create Account Plan"
 }
 
-export function PromoteToAccountPlanModal({ tamAccount, campaigns, onClose, onSuccess }: PromoteToAccountPlanModalProps) {
+export function PromoteToAccountPlanModal({ tamAccount, campaigns, onClose, onSuccess, useScoutTerminology = false }: PromoteToAccountPlanModalProps) {
+  const labels = useScoutTerminology
+    ? { action: 'Establish Territory', creating: 'Establishing...' }
+    : { action: 'Create Account Plan', creating: 'Creating...' }
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -239,7 +243,7 @@ export function PromoteToAccountPlanModal({ tamAccount, campaigns, onClose, onSu
                 disabled={isSubmitting}
                 className="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 disabled:bg-green-400 disabled:cursor-not-allowed rounded-md transition-colors"
               >
-                {isSubmitting ? 'Creating...' : 'Create Account Plan'}
+                {isSubmitting ? labels.creating : labels.action}
               </button>
             </div>
           </form>

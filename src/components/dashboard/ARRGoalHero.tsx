@@ -37,11 +37,12 @@ function formatCurrency(value: number): string {
 }
 
 const STAGE_ORDER = ['Discovery', 'Qualification', 'Proposal', 'Negotiation']
+// Muted stage colors - CRM data should be background context, not the main event
 const STAGE_COLORS: Record<string, string> = {
-  Discovery: '#ef4444',      // red
-  Qualification: '#f59e0b',  // amber
-  Proposal: '#3b82f6',       // blue
-  Negotiation: '#22c55e',    // green
+  Discovery: '#fca5a5',      // red-300 (muted)
+  Qualification: '#fcd34d',  // amber-300 (muted)
+  Proposal: '#93c5fd',       // blue-300 (muted)
+  Negotiation: '#86efac',    // green-300 (muted)
 }
 
 function CategoryCard({ category }: { category: CategoryData }) {
@@ -64,11 +65,12 @@ function CategoryCard({ category }: { category: CategoryData }) {
     .reduce((sum, s) => sum + s.weightedValue, 0)
   const hasRisk = totalForBar > 0 && (earlyStageValue / totalForBar) > 0.6
 
+  // Muted coverage colors - CRM section should be background context
   const getCoverageColor = () => {
-    if (closedPct >= 100) return 'var(--status-success)'
-    if (weightedCoverage >= 100) return 'var(--status-success)'
-    if (weightedCoverage >= 70) return 'var(--status-warning)'
-    return 'var(--status-danger)'
+    if (closedPct >= 100) return '#86efac'    // green-300 (muted)
+    if (weightedCoverage >= 100) return '#86efac'
+    if (weightedCoverage >= 70) return '#fcd34d'  // amber-300 (muted)
+    return '#fca5a5' // red-300 (muted)
   }
 
   const getActionLink = () => {
@@ -209,10 +211,11 @@ export function ARRGoalHero({
 
   const totalStageValue = sortedStages.reduce((sum, s) => sum + s.weightedValue, 0)
 
+  // Muted coverage colors for main hero
   const getCoverageColor = () => {
-    if (weightedCoverage >= 100) return '#22c55e' // green
-    if (weightedCoverage >= 70) return '#f59e0b'  // amber
-    return '#ef4444' // red
+    if (weightedCoverage >= 100) return '#86efac' // green-300 (muted)
+    if (weightedCoverage >= 70) return '#fcd34d'  // amber-300 (muted)
+    return '#fca5a5' // red-300 (muted)
   }
 
   return (
