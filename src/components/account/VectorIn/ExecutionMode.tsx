@@ -958,7 +958,7 @@ export function VectorInExecutionMode({
                     medium: { bg: 'rgba(210, 105, 30, 0.1)', color: 'var(--scout-sunset)' },
                     low: { bg: 'rgba(93, 122, 93, 0.1)', color: 'var(--scout-trail)' },
                   }
-                  const style = impactColors[mission.health_impact] || impactColors.medium
+                  const style = impactColors[mission.health_impact as keyof typeof impactColors] || impactColors.medium
                   return (
                     <div
                       key={mission.spark_id}

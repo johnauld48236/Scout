@@ -327,7 +327,7 @@ export function ReviewCard({
                             : 'var(--scout-sunset)',
                         }}
                       />
-                      {(r.description || '').length > 60 ? (r.description || '').slice(0, 60) + '...' : r.description}
+                      {(r.description || '').length > 60 ? (r.description || '').slice(0, 60) + '...' : (r.description || 'No description')}
                     </p>
                   ))}
                 </div>
@@ -347,7 +347,7 @@ export function ReviewCard({
                   </p>
                   {account.notes.slice(0, 2).map(n => (
                     <p key={n.note_id} className="text-sm" style={{ color: 'var(--scout-earth)' }}>
-                      • {n.note_text.length > 50 ? n.note_text.slice(0, 50) + '...' : n.note_text}
+                      • {(n.note_text || '').length > 50 ? (n.note_text || '').slice(0, 50) + '...' : (n.note_text || 'No text')}
                     </p>
                   ))}
                 </div>
