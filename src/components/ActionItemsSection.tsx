@@ -16,6 +16,7 @@ interface ActionItem {
   due_date?: string
   notes?: string
   blockers?: string
+  bucket_type?: string  // 'account' | 'renewal' | 'upsell' | 'general'
 }
 
 interface Pursuit {

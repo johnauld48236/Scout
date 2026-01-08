@@ -16,10 +16,49 @@ interface AccountPlan {
   account_owner?: string
   strategic_summary?: string
   current_arr?: number
+  tier?: string            // 'strategic' | 'growth' | 'maintain' | etc.
+  renewal_date?: string    // ISO date
+  nps_score?: number       // -100 to 100
+  csat_score?: number      // 1-5 or 1-100
 }
 
 interface AccountDetailHeaderProps {
   account: AccountPlan
+}
+
+// Helper functions for tier badge colors
+function getTierColor(tier?: string) {
+  switch (tier?.toLowerCase()) {
+    case 'strategic': return { bg: 'bg-purple-100 dark:bg-purple-900/30', text: 'text-purple-700 dark:text-purple-400' }
+    case 'growth': return { bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-700 dark:text-blue-400' }
+    case 'scale': return { bg: 'bg-zinc-100 dark:bg-zinc-800', text: 'text-zinc-600 dark:text-zinc-400' }
+    default: return null
+  }
+}
+
+// Helper function for renewal date urgency
+function getRenewalUrgency(renewalDate?: string) {
+  if (!renewalDate) return null
+  const now = new Date()
+  const renewal = new Date(renewalDate)
+  const daysUntil = Math.ceil((renewal.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+
+  if (daysUntil <= 30) return { color: 'text-red-600 dark:text-red-400', urgent: true }
+  if (daysUntil <= 90) return { color: 'text-orange-600 dark:text-orange-400', urgent: true }
+  return { color: 'text-zinc-500 dark:text-zinc-400', urgent: false }
+}
+
+// Format renewal date
+function formatRenewalDate(dateStr?: string) {
+  if (!dateStr) return null
+  const date = new Date(dateStr)
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+// Format NPS score with +/- sign
+function formatNPS(score?: number) {
+  if (score === undefined || score === null) return null
+  return score >= 0 ? `+${score}` : `${score}`
 }
 
 export function AccountDetailHeader({ account }: AccountDetailHeaderProps) {
@@ -27,6 +66,10 @@ export function AccountDetailHeader({ account }: AccountDetailHeaderProps) {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+  const tierColors = getTierColor(account.tier)
+  const renewalUrgency = getRenewalUrgency(account.renewal_date)
+  const isCustomer = account.account_type?.toLowerCase() === 'customer'
 
   const handleDelete = async () => {
     setIsDeleting(true)
@@ -59,12 +102,36 @@ export function AccountDetailHeader({ account }: AccountDetailHeaderProps) {
         </Link>
         <div className="flex items-start justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">
-              {account.account_name}
-            </h1>
-            <p className="text-zinc-500 dark:text-zinc-400 mt-1">
-              {account.vertical} • {account.account_type} • {account.lifecycle_stage || 'No stage'}
-            </p>
+            <div className="flex items-center gap-3">
+              <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">
+                {account.account_name}
+              </h1>
+              {/* Tier Badge */}
+              {tierColors && account.tier && (
+                <span className={`px-2.5 py-1 text-xs font-medium rounded-full ${tierColors.bg} ${tierColors.text}`}>
+                  {account.tier.charAt(0).toUpperCase() + account.tier.slice(1)}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-3 mt-1">
+              <p className="text-zinc-500 dark:text-zinc-400">
+                {account.vertical} • {account.account_type} • {account.lifecycle_stage || 'No stage'}
+              </p>
+              {/* Renewal Date - Only for customers */}
+              {isCustomer && renewalUrgency && account.renewal_date && (
+                <span className={`text-sm ${renewalUrgency.color}`}>
+                  Renews: {formatRenewalDate(account.renewal_date)}
+                </span>
+              )}
+              {/* NPS/CSAT Display */}
+              {isCustomer && (account.nps_score !== undefined || account.csat_score !== undefined) && (
+                <span className="text-sm text-zinc-400 dark:text-zinc-500">
+                  {account.nps_score !== undefined && `NPS: ${formatNPS(account.nps_score)}`}
+                  {account.nps_score !== undefined && account.csat_score !== undefined && ' | '}
+                  {account.csat_score !== undefined && `CSAT: ${account.csat_score}%`}
+                </span>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-4">
             <div className="text-right">

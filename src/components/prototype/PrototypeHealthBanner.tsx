@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { DataAnnotation } from './DataAnnotation'
 
 interface Pursuit {
@@ -150,6 +151,15 @@ export function PrototypeHealthBanner({
           >
             🔄
           </button>
+          <Link
+            href={`/territory/${accountId}/whitespace`}
+            className="px-3 py-1.5 text-sm font-medium rounded-lg border transition-colors hover:bg-gray-50 flex items-center gap-1.5"
+            style={{ borderColor: 'var(--scout-border)', color: 'var(--scout-earth)' }}
+            title="White Space Analysis"
+          >
+            <span>📊</span>
+            <span>White Space</span>
+          </Link>
         </div>
       </div>
 

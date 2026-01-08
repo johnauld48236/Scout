@@ -24,6 +24,7 @@ interface Pursuit {
   pursuit_strategy?: string
   pursuit_owner?: string
   competitive_notes?: string
+  pursuit_type?: string  // 'new_business' | 'renewal' | 'upsell'
   latest_bant?: BANTAnalysis | null
 }
 
@@ -32,12 +33,41 @@ interface PursuitsSectionProps {
   pursuits: Pursuit[]
 }
 
+// Helper function to get pursuit type badge styling
+function getPursuitTypeBadge(type?: string) {
+  switch (type) {
+    case 'renewal':
+      return { label: 'Renewal', bg: 'bg-green-100 dark:bg-green-900/30', text: 'text-green-700 dark:text-green-400' }
+    case 'upsell':
+      return { label: 'Upsell', bg: 'bg-purple-100 dark:bg-purple-900/30', text: 'text-purple-700 dark:text-purple-400' }
+    case 'new_business':
+    default:
+      return { label: 'New', bg: 'bg-blue-100 dark:bg-blue-900/30', text: 'text-blue-700 dark:text-blue-400' }
+  }
+}
+
+type FilterType = 'all' | 'new_business' | 'renewal' | 'upsell'
+
 export function PursuitsSection({ accountPlanId, pursuits }: PursuitsSectionProps) {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [editingPursuit, setEditingPursuit] = useState<Pursuit | null>(null)
   const [bantPursuit, setBantPursuit] = useState<Pursuit | null>(null)
   const [historyPursuit, setHistoryPursuit] = useState<Pursuit | null>(null)
   const [historyRefreshKey, setHistoryRefreshKey] = useState(0)
+  const [typeFilter, setTypeFilter] = useState<FilterType>('all')
+
+  // Filter pursuits by type
+  const filteredPursuits = typeFilter === 'all'
+    ? pursuits
+    : pursuits.filter(p => (p.pursuit_type || 'new_business') === typeFilter)
+
+  // Count by type for filter tabs
+  const typeCounts = {
+    all: pursuits.length,
+    new_business: pursuits.filter(p => !p.pursuit_type || p.pursuit_type === 'new_business').length,
+    renewal: pursuits.filter(p => p.pursuit_type === 'renewal').length,
+    upsell: pursuits.filter(p => p.pursuit_type === 'upsell').length,
+  }
 
   const handleEdit = (pursuit: Pursuit) => {
     setEditingPursuit(pursuit)
@@ -84,19 +114,73 @@ export function PursuitsSection({ accountPlanId, pursuits }: PursuitsSectionProp
         </button>
       </div>
 
+      {/* Filter Tabs */}
+      {pursuits.length > 0 && (
+        <div className="flex gap-1 mb-4 p-1 bg-zinc-100 dark:bg-zinc-800 rounded-lg w-fit">
+          <button
+            onClick={() => setTypeFilter('all')}
+            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+              typeFilter === 'all'
+                ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm'
+                : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
+            }`}
+          >
+            All ({typeCounts.all})
+          </button>
+          <button
+            onClick={() => setTypeFilter('new_business')}
+            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+              typeFilter === 'new_business'
+                ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm'
+                : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
+            }`}
+          >
+            New ({typeCounts.new_business})
+          </button>
+          <button
+            onClick={() => setTypeFilter('renewal')}
+            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+              typeFilter === 'renewal'
+                ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm'
+                : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
+            }`}
+          >
+            Renewals ({typeCounts.renewal})
+          </button>
+          <button
+            onClick={() => setTypeFilter('upsell')}
+            className={`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${
+              typeFilter === 'upsell'
+                ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm'
+                : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
+            }`}
+          >
+            Upsells ({typeCounts.upsell})
+          </button>
+        </div>
+      )}
+
       <div className="space-y-3">
-        {pursuits.map((pursuit) => (
+        {filteredPursuits.map((pursuit) => {
+          const typeBadge = getPursuitTypeBadge(pursuit.pursuit_type)
+          return (
           <div
             key={pursuit.pursuit_id}
             className="rounded-lg bg-white dark:bg-zinc-900 p-4 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 dark:hover:border-zinc-700 transition-colors"
           >
             <div className="flex items-start justify-between mb-2">
-              <h3 className="font-medium text-zinc-900 dark:text-zinc-100">{pursuit.name}</h3>
+              <div className="flex items-center gap-2">
+                <h3 className="font-medium text-zinc-900 dark:text-zinc-100">{pursuit.name}</h3>
+                {/* Pursuit Type Badge */}
+                <span className={`px-2 py-0.5 rounded text-xs font-medium ${typeBadge.bg} ${typeBadge.text}`}>
+                  {typeBadge.label}
+                </span>
+              </div>
               <div className="flex items-center gap-2">
                 <span className={`px-2 py-1 rounded text-xs font-medium ${
                   pursuit.stage === 'Closed_Won' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
                   pursuit.stage === 'Closed_Lost' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' :
-                  'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400'
+                  'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400'
                 }`}>
                   {pursuit.stage.replace('_', ' ')}
                 </span>
@@ -152,9 +236,11 @@ export function PursuitsSection({ accountPlanId, pursuits }: PursuitsSectionProp
               </p>
             )}
           </div>
-        ))}
-        {pursuits.length === 0 && (
-          <p className="text-zinc-500 dark:text-zinc-400 text-sm py-4">No active pursuits</p>
+        )})}
+        {filteredPursuits.length === 0 && (
+          <p className="text-zinc-500 dark:text-zinc-400 text-sm py-4">
+            {typeFilter === 'all' ? 'No active pursuits' : `No ${typeFilter.replace('_', ' ')} pursuits`}
+          </p>
         )}
       </div>
 

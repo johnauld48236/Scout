@@ -1,8 +1,18 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { DataAnnotation } from '@/components/prototype/DataAnnotation'
 import { TrailDrawer } from '@/components/drawers/TrailDrawer'
+import {
+  SignalBucket,
+  TrackerSection,
+  SignalItem,
+  Initiative,
+  painPointToSignalItem,
+  riskToSignalItem,
+  actionItemToSignalItem,
+  bucketToInitiative,
+} from '@/components/tracker'
 
 interface Spark {
   spark_id: string
@@ -151,6 +161,71 @@ export function VectorOutExecutionMode({
   const [isAddingDivision, setIsAddingDivision] = useState(false)
   const [newDivision, setNewDivision] = useState({ name: '', description: '' })
   const [savingDivision, setSavingDivision] = useState(false)
+
+  // Initiatives state (fetched from buckets API)
+  const [initiatives, setInitiatives] = useState<Initiative[]>([])
+  const [showClosedItems, setShowClosedItems] = useState(false)
+
+  // Fetch initiatives from buckets API
+  useEffect(() => {
+    if (!accountPlanId) return
+    const fetchInitiatives = async () => {
+      try {
+        const response = await fetch(`/api/accounts/${accountPlanId}/buckets`)
+        if (response.ok) {
+          const data = await response.json()
+          const converted = (data.buckets || []).map((b: {
+            bucket_id: string
+            name: string
+            description?: string
+            color?: string
+            target_date?: string
+            status?: string
+          }) => bucketToInitiative({
+            bucket_id: b.bucket_id,
+            name: b.name,
+            description: b.description,
+            color: b.color,
+            target_date: b.target_date,
+            status: b.status,
+            items_count: 0,
+          }))
+          setInitiatives(converted)
+        }
+      } catch (error) {
+        console.error('Failed to fetch initiatives:', error)
+      }
+    }
+    fetchInitiatives()
+  }, [accountPlanId])
+
+  // Convert data to SignalItem format for unified components
+  const painPointSignals: SignalItem[] = painPoints.map(p => painPointToSignalItem({
+    pain_point_id: p.pain_point_id,
+    title: p.title,
+    severity: p.severity,
+  }))
+
+  const riskSignals: SignalItem[] = risks.map(r => riskToSignalItem({
+    risk_id: r.risk_id,
+    title: r.title,
+    severity: r.severity,
+    status: r.status,
+  }))
+
+  const actionSignals: SignalItem[] = actionItems.map(a => actionItemToSignalItem({
+    action_id: a.action_id,
+    title: a.title,
+    priority: a.priority,
+    status: a.status,
+    due_date: a.due_date,
+    bucket: a.bucket,
+  }))
+
+  const handleRefresh = () => {
+    onActionUpdate?.()
+    onDataRefresh?.()
+  }
 
   // Get linked pursuit for a spark
   const getLinkedPursuit = (spark: Spark): Pursuit | undefined => {
@@ -471,139 +546,18 @@ export function VectorOutExecutionMode({
       <div className="grid grid-cols-3 gap-6">
         {/* Left Column - Tracker */}
         <div className="col-span-2 space-y-6">
-          {/* Journey (30/60/90 Plan) */}
-          <div
-            className="rounded-xl border p-4"
-            style={{ backgroundColor: 'var(--scout-white)', borderColor: 'var(--scout-border)' }}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3
-                className="font-semibold"
-                style={{ color: 'var(--scout-saddle)', fontFamily: "'Bitter', Georgia, serif" }}
-              >
-                Journey
-              </h3>
-              <div className="flex items-center gap-2">
-                <DataAnnotation
-                  source="risks, pain_points, action_items"
-                  note="Items with target_date grouped by bucket"
-                />
-                <button className="text-sm px-3 py-1 rounded border" style={{ borderColor: 'var(--scout-border)' }}>
-                  🤖
-                </button>
-              </div>
-            </div>
-
-            {/* Scrollable Bucket Content */}
-            <div className="max-h-[400px] overflow-y-auto">
-              {/* Bucket: 30 Days */}
-              <BucketSection
-                label="30 Days"
-                count={bucket30.length}
-                expanded={expandedBuckets['30']}
-                onToggle={() => toggleBucket('30')}
-                items={bucket30}
-                editingAction={editingAction}
-                onEditAction={setEditingAction}
-                onUpdateAction={handleUpdateAction}
-                onDeleteAction={handleDeleteAction}
-                onToggleStatus={handleToggleStatus}
-                savingAction={savingAction}
-              />
-
-              {/* Bucket: 60 Days */}
-              <BucketSection
-                label="60 Days"
-                count={bucket60.length}
-                expanded={expandedBuckets['60']}
-                onToggle={() => toggleBucket('60')}
-                items={bucket60}
-                editingAction={editingAction}
-                onEditAction={setEditingAction}
-                onUpdateAction={handleUpdateAction}
-                onDeleteAction={handleDeleteAction}
-                onToggleStatus={handleToggleStatus}
-                savingAction={savingAction}
-              />
-
-              {/* Bucket: 90 Days */}
-              <BucketSection
-                label="90 Days"
-                count={bucket90.length}
-                expanded={expandedBuckets['90']}
-                onToggle={() => toggleBucket('90')}
-                items={bucket90}
-                editingAction={editingAction}
-                onEditAction={setEditingAction}
-                onUpdateAction={handleUpdateAction}
-                onDeleteAction={handleDeleteAction}
-                onToggleStatus={handleToggleStatus}
-                savingAction={savingAction}
-              />
-            </div>
-
-            {/* Add Action Form */}
-            {isAddingAction ? (
-              <div
-                className="mt-4 p-3 rounded-lg border"
-                style={{ backgroundColor: 'var(--scout-parchment)', borderColor: 'var(--scout-border)' }}
-              >
-                <input
-                  type="text"
-                  value={newActionTitle}
-                  onChange={(e) => setNewActionTitle(e.target.value)}
-                  placeholder="Action item title..."
-                  className="w-full px-3 py-2 rounded border text-sm mb-2"
-                  style={{ borderColor: 'var(--scout-border)' }}
-                  autoFocus
-                />
-                <div className="flex items-center gap-2 mb-2">
-                  <input
-                    type="text"
-                    value={newActionOwner}
-                    onChange={(e) => setNewActionOwner(e.target.value)}
-                    placeholder="Owner (optional)..."
-                    className="flex-1 px-2 py-1 text-sm border rounded"
-                    style={{ borderColor: 'var(--scout-border)' }}
-                  />
-                  <select
-                    value={newActionBucket}
-                    onChange={(e) => setNewActionBucket(e.target.value as '30' | '60' | '90')}
-                    className="px-2 py-1 text-sm border rounded"
-                    style={{ borderColor: 'var(--scout-border)' }}
-                  >
-                    <option value="30">30 Days</option>
-                    <option value="60">60 Days</option>
-                    <option value="90">90 Days</option>
-                  </select>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleAddAction}
-                    disabled={savingAction || !newActionTitle.trim()}
-                    className="px-3 py-1 text-sm rounded text-white disabled:opacity-50"
-                    style={{ backgroundColor: 'var(--scout-trail)' }}
-                  >
-                    {savingAction ? 'Adding...' : 'Add'}
-                  </button>
-                  <button
-                    onClick={() => { setIsAddingAction(false); setNewActionTitle(''); setNewActionOwner('') }}
-                    className="px-3 py-1 text-sm rounded border"
-                    style={{ borderColor: 'var(--scout-border)' }}
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : null}
-
-            <div className="mt-4 pt-4 border-t" style={{ borderColor: 'var(--scout-border)' }}>
-              <p className="text-xs flex items-center gap-2" style={{ color: 'var(--scout-earth-light)' }}>
-                📁 Buckets: 2 active
-                <DataAnnotation source="buckets table" />
-              </p>
-            </div>
-          </div>
+          {/* Journey (30/60/90 Plan) - Unified TrackerSection */}
+          {accountPlanId && (
+            <TrackerSection
+              title="Journey"
+              items={actionSignals}
+              initiatives={initiatives}
+              accountPlanId={accountPlanId}
+              showClosed={showClosedItems}
+              onRefresh={handleRefresh}
+              itemType="action_item"
+            />
+          )}
 
           {/* 2-Week Focus */}
           <div
@@ -647,69 +601,35 @@ export function VectorOutExecutionMode({
             </button>
           </div>
 
-          {/* Pain Points and Risks Row */}
-          <div className="grid grid-cols-2 gap-4">
-            {/* Pain Points */}
-            <div
-              className="rounded-xl border p-4"
-              style={{ backgroundColor: 'var(--scout-white)', borderColor: 'var(--scout-border)' }}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="font-semibold text-sm" style={{ color: 'var(--scout-saddle)' }}>
-                  Pain Points ({painPoints.length})
-                </h3>
-                <DataAnnotation source="pain_points table" note="Vector Out = sales opportunities" />
-              </div>
-
-              <div className="space-y-1 text-xs">
-                <p style={{ color: 'var(--scout-clay)' }}>
-                  Critical: {painPoints.filter((p) => p.severity === 'critical').length}
-                </p>
-                <p style={{ color: 'var(--scout-sunset)' }}>
-                  Significant: {painPoints.filter((p) => p.severity === 'significant').length}
-                </p>
-                <p style={{ color: 'var(--scout-earth-light)' }}>
-                  Moderate: {painPoints.filter((p) => p.severity === 'moderate').length}
-                </p>
-              </div>
-
-              <button
-                className="mt-3 text-xs"
-                style={{ color: 'var(--scout-sky)' }}
-              >
-                View all →
-              </button>
+          {/* Pain Points and Risks Row - Unified SignalBuckets */}
+          {accountPlanId && (
+            <div className="grid grid-cols-2 gap-4">
+              <SignalBucket
+                title="Pain Points"
+                icon="🎯"
+                items={painPointSignals}
+                itemType="pain_point"
+                initiatives={initiatives}
+                accountPlanId={accountPlanId}
+                showClosed={showClosedItems}
+                onRefresh={handleRefresh}
+                emptyMessage="No pain points identified yet"
+                annotation="Sales opportunities from customer challenges"
+              />
+              <SignalBucket
+                title="Open Risks"
+                icon="⚠️"
+                items={riskSignals}
+                itemType="risk"
+                initiatives={initiatives}
+                accountPlanId={accountPlanId}
+                showClosed={showClosedItems}
+                onRefresh={handleRefresh}
+                emptyMessage="No risks identified yet"
+                annotation="Deal risks to mitigate"
+              />
             </div>
-
-            {/* Risks */}
-            <div
-              className="rounded-xl border p-4"
-              style={{ backgroundColor: 'var(--scout-white)', borderColor: 'var(--scout-border)' }}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="font-semibold text-sm" style={{ color: 'var(--scout-saddle)' }}>
-                  Open Risks ({risks.filter((r) => r.status === 'open').length})
-                </h3>
-                <DataAnnotation source="risks table" />
-              </div>
-
-              <div className="space-y-1 text-xs">
-                <p style={{ color: 'var(--scout-clay)' }}>
-                  Critical: {risks.filter((r) => r.severity === 'critical').length}
-                </p>
-                <p style={{ color: 'var(--scout-sunset)' }}>
-                  High: {risks.filter((r) => r.severity === 'high').length}
-                </p>
-              </div>
-
-              <button
-                className="mt-3 text-xs"
-                style={{ color: 'var(--scout-sky)' }}
-              >
-                Manage →
-              </button>
-            </div>
-          </div>
+          )}
         </div>
 
         {/* Right Column - Opportunities & Intelligence */}

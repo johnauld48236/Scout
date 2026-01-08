@@ -29,6 +29,8 @@ interface Stakeholder {
   key_concerns?: string[]
   communication_style?: string
   last_contact_date?: string
+  power_level?: string    // 'high' | 'medium' | 'low'
+  interest_level?: string // 'high' | 'medium' | 'low'
 }
 
 interface StakeholderDrawerProps {
@@ -64,6 +66,18 @@ const relationshipStrengths = [
   { value: 'developing', label: 'Developing', description: 'Building rapport, occasional contact' },
   { value: 'new', label: 'New', description: 'Recently introduced' },
   { value: 'cold', label: 'Cold', description: 'No recent engagement' },
+]
+
+const powerLevels = [
+  { value: 'high', label: 'High', badge: 'H', color: '#dc2626' },
+  { value: 'medium', label: 'Medium', badge: 'M', color: '#f59e0b' },
+  { value: 'low', label: 'Low', badge: 'L', color: '#6b7280' },
+]
+
+const interestLevels = [
+  { value: 'high', label: 'High', badge: 'H', color: '#22c55e' },
+  { value: 'medium', label: 'Medium', badge: 'M', color: '#f59e0b' },
+  { value: 'low', label: 'Low', badge: 'L', color: '#6b7280' },
 ]
 
 export function StakeholderDrawer({
@@ -451,6 +465,73 @@ export function StakeholderDrawer({
               <option value="none">No Purchasing Authority</option>
             </select>
           </div>
+
+          {/* Power / Interest Grid */}
+          <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-gray-100">
+            <div>
+              <label className="block text-xs font-medium mb-2" style={{ color: 'var(--scout-earth-light)' }}>
+                Power Level
+              </label>
+              <div className="flex gap-2">
+                {powerLevels.map(level => (
+                  <button
+                    key={level.value}
+                    onClick={() => handleChange('power_level', formData.power_level === level.value ? '' : level.value)}
+                    className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-colors ${
+                      formData.power_level === level.value
+                        ? 'border-2'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    style={{
+                      borderColor: formData.power_level === level.value ? level.color : undefined,
+                      backgroundColor: formData.power_level === level.value ? `${level.color}10` : 'transparent',
+                      color: formData.power_level === level.value ? level.color : 'inherit',
+                    }}
+                  >
+                    <span className="font-bold">{level.badge}</span>
+                    <span className="ml-1">{level.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium mb-2" style={{ color: 'var(--scout-earth-light)' }}>
+                Interest Level
+              </label>
+              <div className="flex gap-2">
+                {interestLevels.map(level => (
+                  <button
+                    key={level.value}
+                    onClick={() => handleChange('interest_level', formData.interest_level === level.value ? '' : level.value)}
+                    className={`flex-1 px-3 py-2 text-xs rounded-lg border transition-colors ${
+                      formData.interest_level === level.value
+                        ? 'border-2'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                    style={{
+                      borderColor: formData.interest_level === level.value ? level.color : undefined,
+                      backgroundColor: formData.interest_level === level.value ? `${level.color}10` : 'transparent',
+                      color: formData.interest_level === level.value ? level.color : 'inherit',
+                    }}
+                  >
+                    <span className="font-bold">{level.badge}</span>
+                    <span className="ml-1">{level.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Power/Interest Summary Badge */}
+          {(formData.power_level || formData.interest_level) && (
+            <div className="mt-3 flex items-center gap-2">
+              <span className="text-xs" style={{ color: 'var(--scout-earth-light)' }}>Summary:</span>
+              <span className="px-2 py-1 text-xs font-medium rounded bg-gray-100 dark:bg-gray-800">
+                P:{formData.power_level?.charAt(0).toUpperCase() || '-'} I:{formData.interest_level?.charAt(0).toUpperCase() || '-'}
+              </span>
+            </div>
+          )}
         </div>
       </DrawerSection>
 

@@ -418,17 +418,41 @@ export default async function Dashboard() {
         overdueActions={overdueActions.length}
       />
 
-      {/* 2. SCOUT INTELLIGENCE IMPACT - Moved UP (hero section) */}
+      {/* 2. SCOUT INTELLIGENCE IMPACT */}
       <ScoutActivityLayer
         sparkMetrics={sparkMetrics}
         healthDistribution={healthDistribution}
       />
 
-      {/* 3. ARR GOAL - Collapsible CRM Section */}
+      {/* 3. TAM Opportunity + Filling the Gap */}
+      <IntelligenceSummary
+        tamAccountCount={tamAccounts.length}
+        highPriorityCount={highPriorityTam}
+        recentSignals={recentSignals.length}
+        estimatedOpportunity={estimatedOpportunity}
+        activeAccountPlans={accountPlans.length}
+        accountsNeedingAttention={stalePlans.length + plansNeedingAttention.length}
+        openPursuits={openPursuitCount}
+        newBusinessGap={newBusinessGap}
+        upsellGap={upsellGap}
+      />
+
+      {/* 4. Attention Required + Company Goals */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <AttentionRequired
+          items={attentionItems}
+          stalePlans={stalePlans.length}
+          overdueActions={overdueActions.length}
+          stalledDeals={stalledDeals.length}
+        />
+        <GoalsProgress goals={displayGoals} />
+      </div>
+
+      {/* 5. ARR GOAL - CRM Section (collapsed by default, at bottom) */}
       <CollapsibleSection
         title="2026 ARR Goal"
         subtitle="CRM Pipeline & Revenue Targets"
-        defaultExpanded={true}
+        defaultExpanded={false}
         headerContent={
           <CompactARRSummary
             arrTarget={arrTarget}
@@ -450,30 +474,6 @@ export default async function Dashboard() {
           pipelineByStage={stageData}
         />
       </CollapsibleSection>
-
-      {/* 4. Intelligence Summary - Pipeline Coverage + TAM */}
-      <IntelligenceSummary
-        tamAccountCount={tamAccounts.length}
-        highPriorityCount={highPriorityTam}
-        recentSignals={recentSignals.length}
-        estimatedOpportunity={estimatedOpportunity}
-        activeAccountPlans={accountPlans.length}
-        accountsNeedingAttention={stalePlans.length + plansNeedingAttention.length}
-        openPursuits={openPursuitCount}
-        newBusinessGap={newBusinessGap}
-        upsellGap={upsellGap}
-      />
-
-      {/* 5. Bottom Row: Goals + Attention */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <GoalsProgress goals={displayGoals} />
-        <AttentionRequired
-          items={attentionItems}
-          stalePlans={stalePlans.length}
-          overdueActions={overdueActions.length}
-          stalledDeals={stalledDeals.length}
-        />
-      </div>
     </div>
   )
 }

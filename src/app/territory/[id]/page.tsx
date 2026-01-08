@@ -35,6 +35,7 @@ export default async function TerritoryPage({
     divisionsRes,
     scoutThemesRes,
     signalsRes,
+    productUsageRes,
   ] = await Promise.all([
     supabase.from('pursuits').select('*, crm_url, hubspot_deal_id').eq('account_plan_id', id),
     supabase.from('stakeholders').select('*').eq('account_plan_id', id),
@@ -44,6 +45,7 @@ export default async function TerritoryPage({
     supabase.from('account_divisions').select('*').eq('account_plan_id', id).order('sort_order'),
     supabase.from('scout_themes').select('*, linked_pursuit_id, converted_to_pursuit_id').eq('account_plan_id', id).order('created_at', { ascending: false }),
     supabase.from('account_signals').select('*').eq('account_plan_id', id).order('signal_date', { ascending: false }).limit(20),
+    supabase.from('division_product_usage').select('*').eq('account_plan_id', id),
   ])
 
   const pursuits = pursuitsRes.data || []
@@ -54,6 +56,7 @@ export default async function TerritoryPage({
   const divisions = divisionsRes.data || []
   const scoutThemes = scoutThemesRes.data || []
   const signals = signalsRes.data || []
+  const productUsage = productUsageRes.data || []
 
   // Transform scout_themes to Trail format
   const sparks = scoutThemes.map((theme: {
@@ -230,6 +233,10 @@ export default async function TerritoryPage({
     compelling_events: account.compelling_events,
     buying_signals: account.buying_signals,
     corporate_structure: account.corporate_structure,
+    // Health score fields
+    account_type: account.account_type,
+    nps_score: account.nps_score,
+    csat_score: account.csat_score,
   }
 
   return (
@@ -251,6 +258,7 @@ export default async function TerritoryPage({
       rawStakeholders={stakeholders}
       rawSignals={signals}
       rawPursuits={pursuits}
+      productUsage={productUsage}
     />
   )
 }

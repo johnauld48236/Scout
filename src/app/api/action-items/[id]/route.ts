@@ -23,16 +23,31 @@ async function handleUpdate(
     if (body.category !== undefined) updates.category = body.category
     if (body.week_number !== undefined) updates.week_number = body.week_number
     if (body.pursuit_id !== undefined) updates.pursuit_id = body.pursuit_id
-    // 30/60/90 bucket support
+    if (body.initiative_id !== undefined) updates.initiative_id = body.initiative_id
+    // 30/60/90 bucket support - will be skipped if column doesn't exist
     if (body.bucket !== undefined) updates.bucket = body.bucket
     if (body.slip_acknowledged !== undefined) updates.slip_acknowledged = body.slip_acknowledged
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('action_items')
       .update(updates)
       .eq('action_id', id)
       .select()
       .single()
+
+    // If bucket column doesn't exist, retry without it
+    if (error && error.code === 'PGRST204' && error.message?.includes('bucket')) {
+      console.log('Bucket column not found, retrying without it')
+      delete updates.bucket
+      const retry = await supabase
+        .from('action_items')
+        .update(updates)
+        .eq('action_id', id)
+        .select()
+        .single()
+      data = retry.data
+      error = retry.error
+    }
 
     if (error) {
       console.error('Error updating action item:', error)

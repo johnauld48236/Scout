@@ -14,6 +14,10 @@ interface AccountPlan {
   account_owner?: string
   strategic_summary?: string
   current_arr?: number
+  tier?: string            // 'strategic' | 'growth' | 'maintain' | etc.
+  renewal_date?: string    // ISO date
+  nps_score?: number       // -100 to 100
+  csat_score?: number      // 1-5 or 1-100
 }
 
 interface EditAccountModalProps {
@@ -30,6 +34,12 @@ const LIFECYCLE_STAGES = [
   'Live', 'Expansion', 'Renewal', 'At_Risk', 'Churned'
 ]
 
+const TIERS = ['strategic', 'growth', 'scale']
+
+const CUSTOMER_LIFECYCLE_STAGES = [
+  'Onboarding', 'Adoption', 'Value_Realization', 'Expansion', 'Renewal', 'At_Risk', 'Churned'
+]
+
 export function EditAccountModal({ isOpen, onClose, account }: EditAccountModalProps) {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -44,6 +54,11 @@ export function EditAccountModal({ isOpen, onClose, account }: EditAccountModalP
     account_owner: '',
     strategic_summary: '',
     current_arr: '',
+    // Customer Success fields
+    tier: '',
+    renewal_date: '',
+    nps_score: '',
+    csat_score: '',
   })
 
   useEffect(() => {
@@ -57,6 +72,11 @@ export function EditAccountModal({ isOpen, onClose, account }: EditAccountModalP
         account_owner: account.account_owner || '',
         strategic_summary: account.strategic_summary || '',
         current_arr: account.current_arr?.toString() || '',
+        // Customer Success fields
+        tier: account.tier || '',
+        renewal_date: account.renewal_date?.split('T')[0] || '',
+        nps_score: account.nps_score?.toString() || '',
+        csat_score: account.csat_score?.toString() || '',
       })
     }
   }, [account])
@@ -81,6 +101,16 @@ export function EditAccountModal({ isOpen, onClose, account }: EditAccountModalP
     if (formData.account_owner) updateData.account_owner = formData.account_owner
     if (formData.strategic_summary) updateData.strategic_summary = formData.strategic_summary
     if (formData.current_arr) updateData.current_arr = parseFloat(formData.current_arr)
+
+    // Customer Success fields
+    if (formData.tier) updateData.tier = formData.tier
+    else updateData.tier = null
+    if (formData.renewal_date) updateData.renewal_date = formData.renewal_date
+    else updateData.renewal_date = null
+    if (formData.nps_score) updateData.nps_score = parseInt(formData.nps_score)
+    else updateData.nps_score = null
+    if (formData.csat_score) updateData.csat_score = parseInt(formData.csat_score)
+    else updateData.csat_score = null
 
     const { error: updateError } = await supabase
       .from('account_plans')
@@ -254,6 +284,100 @@ export function EditAccountModal({ isOpen, onClose, account }: EditAccountModalP
               className="w-full px-3 py-2 rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
+
+          {/* Customer Success Section - Only shows for Customers */}
+          {formData.account_type === 'Customer' && (
+            <div className="pt-4 mt-4 border-t border-zinc-200 dark:border-zinc-700">
+              <h3 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-4">
+                Customer Success
+              </h3>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                    Tier
+                  </label>
+                  <select
+                    name="tier"
+                    value={formData.tier}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">None</option>
+                    {TIERS.map(tier => (
+                      <option key={tier} value={tier}>
+                        {tier.charAt(0).toUpperCase() + tier.slice(1)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                    Renewal Date
+                  </label>
+                  <input
+                    type="date"
+                    name="renewal_date"
+                    value={formData.renewal_date}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mt-4">
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                    NPS Score
+                  </label>
+                  <input
+                    type="number"
+                    name="nps_score"
+                    value={formData.nps_score}
+                    onChange={handleChange}
+                    min="-100"
+                    max="100"
+                    className="w-full px-3 py-2 rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="-100 to +100"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                    CSAT Score (%)
+                  </label>
+                  <input
+                    type="number"
+                    name="csat_score"
+                    value={formData.csat_score}
+                    onChange={handleChange}
+                    min="0"
+                    max="100"
+                    className="w-full px-3 py-2 rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="0 to 100"
+                  />
+                </div>
+              </div>
+
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                  Customer Lifecycle Stage
+                </label>
+                <select
+                  name="lifecycle_stage"
+                  value={formData.lifecycle_stage}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Select...</option>
+                  {CUSTOMER_LIFECYCLE_STAGES.map(stage => (
+                    <option key={stage} value={stage}>{stage.replace(/_/g, ' ')}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          )}
 
           <div className="flex justify-end gap-3 pt-4 border-t border-zinc-200 dark:border-zinc-700">
             <button

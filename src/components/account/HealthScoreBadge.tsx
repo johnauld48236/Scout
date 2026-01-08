@@ -6,7 +6,24 @@ import {
   HEALTH_BAND_BG_COLORS,
   HEALTH_BAND_LABELS,
   type HealthBand,
+  type ScoringProfile,
 } from '@/lib/scoring/health-score';
+
+// Vector Out breakdown (prospects)
+interface VectorOutBreakdown {
+  engagement: number;
+  momentum: number;
+  risk: number;
+  intelligence: number;
+}
+
+// Vector In breakdown (customers)
+interface VectorInBreakdown {
+  sentiment: number;
+  usage: number;
+  support: number;
+  engagement: number;
+}
 
 interface HealthScoreBadgeProps {
   score: number;
@@ -14,12 +31,9 @@ interface HealthScoreBadgeProps {
   size?: 'sm' | 'md' | 'lg';
   showScore?: boolean;
   showBreakdown?: boolean;
-  breakdown?: {
-    engagement: number;
-    momentum: number;
-    risk: number;
-    intelligence: number;
-  };
+  profile?: ScoringProfile;
+  breakdown?: VectorOutBreakdown;
+  vectorInBreakdown?: VectorInBreakdown;
 }
 
 const SIZE_CLASSES = {
@@ -34,8 +48,12 @@ export function HealthScoreBadge({
   size = 'md',
   showScore = true,
   showBreakdown = false,
+  profile = 'vector_out',
   breakdown,
+  vectorInBreakdown,
 }: HealthScoreBadgeProps) {
+  const isVectorIn = profile === 'vector_in';
+
   return (
     <div className="inline-block">
       <div
@@ -52,7 +70,28 @@ export function HealthScoreBadge({
         {showScore && <span className="opacity-70">({score})</span>}
       </div>
 
-      {showBreakdown && breakdown && (
+      {showBreakdown && isVectorIn && vectorInBreakdown && (
+        <div className="mt-2 text-xs text-gray-500 space-y-1">
+          <div className="flex justify-between">
+            <span>Sentiment</span>
+            <span>{vectorInBreakdown.sentiment}/40</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Product Usage</span>
+            <span>{vectorInBreakdown.usage}/30</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Support Health</span>
+            <span>{vectorInBreakdown.support}/20</span>
+          </div>
+          <div className="flex justify-between">
+            <span>Engagement</span>
+            <span>{vectorInBreakdown.engagement}/10</span>
+          </div>
+        </div>
+      )}
+
+      {showBreakdown && !isVectorIn && breakdown && (
         <div className="mt-2 text-xs text-gray-500 space-y-1">
           <div className="flex justify-between">
             <span>Engagement</span>
@@ -79,22 +118,39 @@ export function HealthScoreBadge({
 interface HealthScoreCardProps {
   score: number;
   band: HealthBand;
-  breakdown: {
-    engagement: number;
-    momentum: number;
-    risk: number;
-    intelligence: number;
-  };
+  profile?: ScoringProfile;
+  breakdown?: VectorOutBreakdown;
+  vectorInBreakdown?: VectorInBreakdown;
   calculatedAt?: string;
 }
 
-export function HealthScoreCard({ score, band, breakdown, calculatedAt }: HealthScoreCardProps) {
-  const components = [
-    { label: 'Engagement', value: breakdown.engagement, color: 'bg-blue-500' },
-    { label: 'Momentum', value: breakdown.momentum, color: 'bg-green-500' },
-    { label: 'Risk', value: breakdown.risk, color: 'bg-orange-500' },
-    { label: 'Intelligence', value: breakdown.intelligence, color: 'bg-purple-500' },
-  ];
+export function HealthScoreCard({
+  score,
+  band,
+  profile = 'vector_out',
+  breakdown,
+  vectorInBreakdown,
+  calculatedAt,
+}: HealthScoreCardProps) {
+  const isVectorIn = profile === 'vector_in';
+
+  // Vector In components with their max scores
+  const vectorInComponents = vectorInBreakdown ? [
+    { label: 'Sentiment', value: vectorInBreakdown.sentiment, max: 40, color: 'bg-pink-500' },
+    { label: 'Product Usage', value: vectorInBreakdown.usage, max: 30, color: 'bg-cyan-500' },
+    { label: 'Support Health', value: vectorInBreakdown.support, max: 20, color: 'bg-amber-500' },
+    { label: 'Engagement', value: vectorInBreakdown.engagement, max: 10, color: 'bg-blue-500' },
+  ] : [];
+
+  // Vector Out components with their max scores
+  const vectorOutComponents = breakdown ? [
+    { label: 'Engagement', value: breakdown.engagement, max: 25, color: 'bg-blue-500' },
+    { label: 'Momentum', value: breakdown.momentum, max: 25, color: 'bg-green-500' },
+    { label: 'Risk', value: breakdown.risk, max: 25, color: 'bg-orange-500' },
+    { label: 'Intelligence', value: breakdown.intelligence, max: 25, color: 'bg-purple-500' },
+  ] : [];
+
+  const components = isVectorIn ? vectorInComponents : vectorOutComponents;
 
   return (
     <div className="bg-white rounded-lg border p-4">
@@ -135,14 +191,14 @@ export function HealthScoreCard({ score, band, breakdown, calculatedAt }: Health
         <div className="flex-1 space-y-2">
           {components.map((component) => (
             <div key={component.label} className="flex items-center gap-2">
-              <span className="text-xs text-gray-500 w-20">{component.label}</span>
+              <span className="text-xs text-gray-500 w-24 truncate">{component.label}</span>
               <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                 <div
                   className={`h-full ${component.color} rounded-full transition-all`}
-                  style={{ width: `${(component.value / 25) * 100}%` }}
+                  style={{ width: `${(component.value / component.max) * 100}%` }}
                 />
               </div>
-              <span className="text-xs text-gray-600 w-8 text-right">{component.value}</span>
+              <span className="text-xs text-gray-600 w-10 text-right">{component.value}/{component.max}</span>
             </div>
           ))}
         </div>

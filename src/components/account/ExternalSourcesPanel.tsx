@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, MessageSquare, Mail, ClipboardList, Building2, CheckSquare, ExternalLink, Settings } from 'lucide-react';
+import { ChevronDown, ChevronUp, MessageSquare, Mail, ClipboardList, Building2, CheckSquare, ExternalLink, Settings, FileText } from 'lucide-react';
 
 interface ExternalSourcesPanelProps {
   accountPlanId: string;
@@ -12,8 +12,11 @@ interface ExternalSourcesPanelProps {
   crmOpportunityUrl?: string | null;
   emailCount?: number;
   onConfigureClick?: () => void;
+  onImportNotesClick?: () => void;
   // Scout terminology support
   title?: string;  // "Scout Workbench" or "External Sources"
+  // Allow controlling initial expand state
+  defaultExpanded?: boolean;
 }
 
 export function ExternalSourcesPanel({
@@ -25,9 +28,11 @@ export function ExternalSourcesPanel({
   crmOpportunityUrl,
   emailCount = 0,
   onConfigureClick,
+  onImportNotesClick,
   title = 'Scout Workbench',  // Default to Scout terminology
+  defaultExpanded = true,
 }: ExternalSourcesPanelProps) {
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
   // Generate email forward address
   const emailForwardAddress = `scout+${accountSlug}@yourapp.com`;
@@ -113,6 +118,21 @@ export function ExternalSourcesPanel({
               placeholder="Link Project"
               color="orange"
             />
+
+            {/* Import Notes */}
+            {onImportNotesClick && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onImportNotesClick();
+                }}
+                className="flex flex-col items-center justify-center p-3 rounded-lg border border-dashed border-green-200 hover:border-green-300 hover:bg-green-50 transition-colors text-green-600 hover:text-green-700"
+              >
+                <FileText className="w-4 h-4 mb-1" />
+                <span className="text-xs font-medium">Import Notes</span>
+                <span className="text-[10px] text-green-500">AI Extract</span>
+              </button>
+            )}
 
             {/* Configure */}
             {onConfigureClick && (

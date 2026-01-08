@@ -17,10 +17,23 @@ export async function PATCH(
     // Build update object with only provided fields
     const updateData: Record<string, unknown> = {}
 
-    if (body.description !== undefined) updateData.description = body.description
+    // Handle title field - map to both title and description for compatibility
+    if (body.title !== undefined) {
+      updateData.title = body.title
+      // Also set description if not explicitly provided (description is required in DB)
+      if (body.description === undefined || body.description === null) {
+        updateData.description = body.title
+      }
+    }
+    // Handle description - never set to null (use empty string or title as fallback)
+    if (body.description !== undefined) {
+      updateData.description = body.description || body.title || ''
+    }
     if (body.severity !== undefined) updateData.severity = body.severity
     if (body.status !== undefined) updateData.status = body.status
+    if (body.priority !== undefined) updateData.severity = body.priority === 'P1' ? 'critical' : body.priority === 'P2' ? 'significant' : 'moderate'
     if (body.target_date !== undefined) updateData.target_date = body.target_date
+    if (body.due_date !== undefined) updateData.target_date = body.due_date // Alias for target_date
     if (body.date_type !== undefined) updateData.date_type = body.date_type
     if (body.source_type !== undefined) updateData.source_type = body.source_type
     if (body.source_date !== undefined) updateData.source_date = body.source_date

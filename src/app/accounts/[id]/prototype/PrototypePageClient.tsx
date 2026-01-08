@@ -11,6 +11,9 @@ import { VectorOutExecutionMode } from '@/components/account/VectorOut/Execution
 import { VectorInDiscoveryMode } from '@/components/account/VectorIn/DiscoveryMode'
 import { VectorInExecutionMode } from '@/components/account/VectorIn/ExecutionMode'
 import { ExternalSourcesPanel } from '@/components/account/ExternalSourcesPanel'
+import { ContextLayer } from '@/components/territory/ContextLayer'
+import { HealthScoreBreakdownCard } from '@/components/territory/HealthScoreBreakdownCard'
+import { ImportNotesDrawer } from '@/components/drawers/ImportNotesDrawer'
 import { MOCK_VECTOR_IN } from '@/components/prototype/mockData'
 // Slide-out panel wrapper
 import { SlideOutPanel } from '@/components/panels/SlideOutPanel'
@@ -36,6 +39,11 @@ interface AccountData {
   slack_channel_url?: string
   jira_project_url?: string
   asana_project_url?: string
+  // Account type for Vector In/Out detection
+  account_type?: 'prospect' | 'customer' | null
+  // Customer success metrics
+  nps_score?: number | null
+  csat_score?: number | null
   // Additional fields for mature components
   account_thesis?: string
   compelling_events?: Array<{ event: string; date?: string; source?: string; impact?: 'high' | 'medium' | 'low' }>
@@ -188,6 +196,15 @@ interface DiscoveryStatus {
   plan: { complete: boolean; count: number }
 }
 
+interface ProductUsage {
+  usage_id: string
+  account_plan_id: string
+  division_id: string | null
+  product_module: string
+  usage_status: string | null
+  notes?: string
+}
+
 interface PrototypePageClientProps {
   accountId: string
   account: AccountData
@@ -206,6 +223,7 @@ interface PrototypePageClientProps {
   rawStakeholders?: RawStakeholder[]
   rawSignals?: RawSignal[]
   rawPursuits?: RawPursuit[]
+  productUsage?: ProductUsage[]
 }
 
 export function PrototypePageClient({
@@ -226,6 +244,7 @@ export function PrototypePageClient({
   rawStakeholders = [],
   rawSignals = [],
   rawPursuits = [],
+  productUsage = [],
 }: PrototypePageClientProps) {
   const router = useRouter()
 
@@ -273,6 +292,7 @@ export function PrototypePageClient({
   const [isFavorite, setIsFavorite] = useState(account.is_favorite || false)
   const [inWeeklyReview, setInWeeklyReview] = useState(account.in_weekly_review || false)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [isImportNotesOpen, setIsImportNotesOpen] = useState(false)
 
   // Handler for favorite toggle
   const handleFavoriteToggle = useCallback(async () => {
@@ -493,16 +513,23 @@ export function PrototypePageClient({
           onRefreshIntelligence={handleRefreshIntelligence}
         />
 
-        {/* External Sources Panel */}
-        <div className="mt-4">
-          <ExternalSourcesPanel
-            accountPlanId={accountId}
-            accountSlug={account.account_name?.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 20) || accountId.slice(0, 8)}
-            slackChannelUrl={account.slack_channel_url}
-            jiraProjectUrl={account.jira_project_url}
-            asanaProjectUrl={account.asana_project_url}
-          />
-        </div>
+        {/* Health Score Breakdown Card */}
+        <HealthScoreBreakdownCard
+          accountId={accountId}
+          accountType={account.account_type || null}
+          npsScore={account.nps_score}
+          csatScore={account.csat_score}
+        />
+
+        {/* Context Layer - Terrain + Compass */}
+        <ContextLayer
+          accountId={accountId}
+          divisions={rawDivisions}
+          stakeholders={rawStakeholders}
+          productUsage={productUsage}
+          onDivisionUpdate={handlePanelUpdate}
+          onStakeholderUpdate={handlePanelUpdate}
+        />
 
         {/* Vector Tabs */}
         <VectorTabs activeVector={activeVector} onVectorChange={setActiveVector} />
@@ -557,7 +584,7 @@ export function PrototypePageClient({
                 />
               </div>
 
-              {/* Vector In Content - Still using mock data */}
+              {/* Vector In Content */}
               {vectorInMode === 'discovery' ? (
                 <VectorInDiscoveryMode
                   discoveryStatus={MOCK_VECTOR_IN.discovery_status}
@@ -569,11 +596,59 @@ export function PrototypePageClient({
                   issues={MOCK_VECTOR_IN.issues}
                   issueSignals={MOCK_VECTOR_IN.issue_signals}
                   contacts={MOCK_VECTOR_IN.contacts}
-                  resolutionItems={MOCK_VECTOR_IN.resolution_items}
+                  resolutionItems={actionItems.map(ai => {
+                    // Derive timeframe from bucket or due_date
+                    let timeframe = 'backlog'
+                    if (ai.bucket === '30') timeframe = 'this_week'
+                    else if (ai.bucket === '60') timeframe = 'next_week'
+                    else if (ai.bucket === '90') timeframe = 'this_month'
+                    else if (ai.due_date) {
+                      const daysUntilDue = Math.ceil((new Date(ai.due_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
+                      if (daysUntilDue <= 7) timeframe = 'this_week'
+                      else if (daysUntilDue <= 14) timeframe = 'next_week'
+                      else if (daysUntilDue <= 30) timeframe = 'this_month'
+                    }
+                    return {
+                      action_id: ai.action_id,
+                      title: ai.title,
+                      due_date: ai.due_date || '',
+                      status: ai.status,
+                      priority: ai.priority || 'P3',
+                      timeframe,
+                      bucket: ai.bucket,
+                    }
+                  })}
+                  accountPlanId={accountId}
+                  fieldRequests={painPoints.map(p => ({
+                    id: p.pain_point_id,
+                    title: p.title,
+                    priority: p.severity === 'critical' ? 'high' : p.severity === 'significant' ? 'medium' : 'low',
+                    status: 'open',
+                  }))}
+                  hazards={risks.map(r => ({
+                    id: r.risk_id,
+                    title: r.title,
+                    severity: r.severity,
+                    status: r.status,
+                  }))}
+                  onDataRefresh={handlePanelUpdate}
                 />
               )}
             </>
           )}
+        </div>
+
+        {/* Scout Workbench - Configuration Layer (bottom, collapsed by default) */}
+        <div className="mt-6">
+          <ExternalSourcesPanel
+            accountPlanId={accountId}
+            accountSlug={account.account_name?.toLowerCase().replace(/[^a-z0-9]/g, '-').slice(0, 20) || accountId.slice(0, 8)}
+            slackChannelUrl={account.slack_channel_url}
+            jiraProjectUrl={account.jira_project_url}
+            asanaProjectUrl={account.asana_project_url}
+            defaultExpanded={false}
+            onImportNotesClick={() => setIsImportNotesOpen(true)}
+          />
         </div>
 
       </div>
@@ -673,6 +748,15 @@ export function PrototypePageClient({
           onUpdate={handlePanelUpdate}
         />
       </SlideOutPanel>
+
+      {/* Import Notes Drawer */}
+      <ImportNotesDrawer
+        isOpen={isImportNotesOpen}
+        onClose={() => setIsImportNotesOpen(false)}
+        accountId={accountId}
+        accountName={account.account_name || 'Unknown Account'}
+        onImportComplete={handlePanelUpdate}
+      />
     </div>
   )
 }

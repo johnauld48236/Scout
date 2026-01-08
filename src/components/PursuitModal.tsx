@@ -16,6 +16,7 @@ interface Pursuit {
   pursuit_strategy?: string
   pursuit_owner?: string
   competitive_notes?: string
+  pursuit_type?: string  // 'new_business' | 'renewal' | 'upsell'
 }
 
 interface PursuitModalProps {
@@ -29,6 +30,12 @@ const STAGES = [
   'Discovery', 'Qualification', 'Demo', 'Proposal', 'Negotiation', 'Closed_Won', 'Closed_Lost'
 ]
 
+const PURSUIT_TYPES = [
+  { value: 'new_business', label: 'New Business' },
+  { value: 'renewal', label: 'Renewal' },
+  { value: 'upsell', label: 'Upsell' },
+]
+
 export function PursuitModal({ isOpen, onClose, accountPlanId, pursuit }: PursuitModalProps) {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -37,6 +44,7 @@ export function PursuitModal({ isOpen, onClose, accountPlanId, pursuit }: Pursui
 
   const [formData, setFormData] = useState({
     name: '',
+    pursuit_type: 'new_business',
     estimated_value: '',
     confirmed_value: '',
     stage: 'Discovery',
@@ -51,6 +59,7 @@ export function PursuitModal({ isOpen, onClose, accountPlanId, pursuit }: Pursui
     if (pursuit) {
       setFormData({
         name: pursuit.name || '',
+        pursuit_type: pursuit.pursuit_type || 'new_business',
         estimated_value: pursuit.estimated_value?.toString() || '',
         confirmed_value: pursuit.confirmed_value?.toString() || '',
         stage: pursuit.stage || 'Discovery',
@@ -63,6 +72,7 @@ export function PursuitModal({ isOpen, onClose, accountPlanId, pursuit }: Pursui
     } else {
       setFormData({
         name: '',
+        pursuit_type: 'new_business',
         estimated_value: '',
         confirmed_value: '',
         stage: 'Discovery',
@@ -87,6 +97,7 @@ export function PursuitModal({ isOpen, onClose, accountPlanId, pursuit }: Pursui
     const data: Record<string, unknown> = {
       account_plan_id: accountPlanId,
       name: formData.name,
+      pursuit_type: formData.pursuit_type,
       stage: formData.stage,
     }
 
@@ -164,6 +175,22 @@ export function PursuitModal({ isOpen, onClose, accountPlanId, pursuit }: Pursui
               className="w-full px-3 py-2 rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="e.g., 2026 Platform Expansion"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+              Pursuit Type
+            </label>
+            <select
+              name="pursuit_type"
+              value={formData.pursuit_type}
+              onChange={handleChange}
+              className="w-full px-3 py-2 rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              {PURSUIT_TYPES.map(type => (
+                <option key={type.value} value={type.value}>{type.label}</option>
+              ))}
+            </select>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

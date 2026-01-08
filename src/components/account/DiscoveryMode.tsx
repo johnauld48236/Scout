@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ScoutAIIcon } from '@/components/ui/scout-logo'
+import { AISuggestionsDrawer } from '@/components/drawers/AISuggestionsDrawer'
 
 interface Division {
   division_id: string
@@ -54,9 +55,8 @@ export function DiscoveryMode({
   onSwitchToExecution,
 }: DiscoveryModeProps) {
   const router = useRouter()
-  const [isEnrichingStructure, setIsEnrichingStructure] = useState(false)
-  const [isEnrichingStakeholders, setIsEnrichingStakeholders] = useState(false)
   const [isGatheringIntel, setIsGatheringIntel] = useState(false)
+  const [aiDrawerType, setAiDrawerType] = useState<'divisions' | 'stakeholders' | null>(null)
 
   // Progress indicators
   type ProgressStatus = 'pending' | 'partial' | 'complete'
@@ -66,49 +66,7 @@ export function DiscoveryMode({
   const opportunitiesProgress: ProgressStatus = pursuits.length > 0 ? 'complete' : 'pending'
   const planProgress: ProgressStatus = hasTracker ? 'complete' : 'pending'
 
-  // AI Actions
-  const handleEnrichStructure = async () => {
-    setIsEnrichingStructure(true)
-    try {
-      await fetch('/api/ai/enrich-structure', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          companyName: accountName,
-          domain: website,
-          industry,
-          accountId,
-        }),
-      })
-      router.refresh()
-    } catch (error) {
-      console.error('Structure enrichment failed:', error)
-    } finally {
-      setIsEnrichingStructure(false)
-    }
-  }
-
-  const handleFindStakeholders = async () => {
-    setIsEnrichingStakeholders(true)
-    try {
-      await fetch('/api/ai/find-stakeholders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          companyName: accountName,
-          domain: website,
-          industry,
-          accountId,
-        }),
-      })
-      router.refresh()
-    } catch (error) {
-      console.error('Stakeholder search failed:', error)
-    } finally {
-      setIsEnrichingStakeholders(false)
-    }
-  }
-
+  // AI Actions - Signals still use inline handler, others use drawer
   const handleGatherIntelligence = async () => {
     setIsGatheringIntel(true)
     try {
@@ -146,8 +104,8 @@ export function DiscoveryMode({
       countLabel: 'mapped',
       aiLabel: 'AI Map',
       manualLabel: '+ Manual',
-      isLoading: isEnrichingStructure,
-      onAIClick: handleEnrichStructure,
+      isLoading: false,
+      onAIClick: () => setAiDrawerType('divisions'),
       onManualClick: () => router.push(`/accounts/${accountId}#divisions`),
     },
     {
@@ -165,8 +123,8 @@ export function DiscoveryMode({
       countLabel: 'contacts',
       aiLabel: 'Find',
       manualLabel: '+ Add',
-      isLoading: isEnrichingStakeholders,
-      onAIClick: handleFindStakeholders,
+      isLoading: false,
+      onAIClick: () => setAiDrawerType('stakeholders'),
       onManualClick: () => router.push(`/accounts/${accountId}#stakeholders`),
     },
     {
@@ -293,6 +251,21 @@ export function DiscoveryMode({
             Switch to Execution View →
           </button>
         </div>
+      )}
+
+      {/* AI Suggestions Drawer */}
+      {aiDrawerType && (
+        <AISuggestionsDrawer
+          isOpen={!!aiDrawerType}
+          onClose={() => setAiDrawerType(null)}
+          type={aiDrawerType}
+          accountId={accountId}
+          accountName={accountName}
+          onSaveComplete={() => {
+            setAiDrawerType(null)
+            router.refresh()
+          }}
+        />
       )}
     </div>
   )

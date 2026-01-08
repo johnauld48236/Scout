@@ -23,6 +23,8 @@ interface Stakeholder {
   org_level?: number
   is_placeholder?: boolean  // true = waypoint (role to find), false = confirmed contact
   placeholder_role?: string  // Role description for waypoints
+  power_level?: string    // 'high' | 'medium' | 'low'
+  interest_level?: string // 'high' | 'medium' | 'low'
 }
 
 interface StakeholderModalProps {
@@ -60,6 +62,9 @@ const ENGAGEMENT_LEVELS = [
   'None',
 ]
 
+const POWER_LEVELS = ['high', 'medium', 'low']
+const INTEREST_LEVELS = ['high', 'medium', 'low']
+
 export function StakeholderModal({ isOpen, onClose, accountPlanId, stakeholder, allStakeholders = [] }: StakeholderModalProps) {
   const router = useRouter()
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -83,6 +88,8 @@ export function StakeholderModal({ isOpen, onClose, accountPlanId, stakeholder, 
     org_level: '',
     is_placeholder: false,
     placeholder_role: '',
+    power_level: '',
+    interest_level: '',
   })
 
   useEffect(() => {
@@ -104,6 +111,8 @@ export function StakeholderModal({ isOpen, onClose, accountPlanId, stakeholder, 
         org_level: stakeholder.org_level?.toString() || '',
         is_placeholder: stakeholder.is_placeholder || false,
         placeholder_role: stakeholder.placeholder_role || '',
+        power_level: stakeholder.power_level || '',
+        interest_level: stakeholder.interest_level || '',
       })
     } else {
       setFormData({
@@ -123,6 +132,8 @@ export function StakeholderModal({ isOpen, onClose, accountPlanId, stakeholder, 
         org_level: '',
         is_placeholder: false,
         placeholder_role: '',
+        power_level: '',
+        interest_level: '',
       })
     }
   }, [stakeholder])
@@ -158,6 +169,12 @@ export function StakeholderModal({ isOpen, onClose, accountPlanId, stakeholder, 
     // Compass: confirmed vs waypoint distinction
     data.is_placeholder = formData.is_placeholder
     if (formData.placeholder_role) data.placeholder_role = formData.placeholder_role
+
+    // Power/Interest levels
+    if (formData.power_level) data.power_level = formData.power_level
+    else data.power_level = null
+    if (formData.interest_level) data.interest_level = formData.interest_level
+    else data.interest_level = null
 
     let result
     if (isEditing) {
@@ -320,6 +337,46 @@ export function StakeholderModal({ isOpen, onClose, accountPlanId, stakeholder, 
                 className="w-full px-3 py-2 rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="7"
               />
+            </div>
+          </div>
+
+          {/* Power / Interest Levels */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                Power Level
+              </label>
+              <select
+                name="power_level"
+                value={formData.power_level}
+                onChange={handleChange}
+                className="w-full px-3 py-2 rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Not Set</option>
+                {POWER_LEVELS.map(level => (
+                  <option key={level} value={level}>
+                    {level.charAt(0).toUpperCase() + level.slice(1)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1">
+                Interest Level
+              </label>
+              <select
+                name="interest_level"
+                value={formData.interest_level}
+                onChange={handleChange}
+                className="w-full px-3 py-2 rounded-md border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">Not Set</option>
+                {INTEREST_LEVELS.map(level => (
+                  <option key={level} value={level}>
+                    {level.charAt(0).toUpperCase() + level.slice(1)}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 

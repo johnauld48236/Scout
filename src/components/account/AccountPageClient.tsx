@@ -39,6 +39,8 @@ interface Stakeholder {
   relationship_strength?: string
   purchasing_authority?: string
   is_placeholder?: boolean
+  power_level?: string    // 'high' | 'medium' | 'low'
+  interest_level?: string // 'high' | 'medium' | 'low'
 }
 
 interface Pursuit {
