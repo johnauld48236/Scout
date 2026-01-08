@@ -327,7 +327,7 @@ export function ReviewCard({
                             : 'var(--scout-sunset)',
                         }}
                       />
-                      {r.description.length > 60 ? r.description.slice(0, 60) + '...' : r.description}
+                      {(r.description || '').length > 60 ? (r.description || '').slice(0, 60) + '...' : r.description}
                     </p>
                   ))}
                 </div>

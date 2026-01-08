@@ -3,6 +3,21 @@
 import { useState, useEffect } from 'react'
 import { Initiative, INITIATIVE_COLORS, SignalItem } from './types'
 
+// Helper to get the correct API endpoint for an item type
+function getApiEndpoint(itemType: SignalItem['item_type'], itemId: string, accountPlanId: string): string {
+  switch (itemType) {
+    case 'pain_point':
+    case 'field_request':
+      return `/api/accounts/${accountPlanId}/pain-points/${itemId}`
+    case 'risk':
+    case 'hazard':
+      return `/api/accounts/${accountPlanId}/risks/${itemId}`
+    case 'action_item':
+    default:
+      return `/api/action-items/${itemId}`
+  }
+}
+
 interface InitiativeModalProps {
   isOpen: boolean
   onClose: () => void
@@ -129,9 +144,10 @@ export function InitiativeModal({
       })
 
       if (response.ok) {
-        // Close all child items
+        // Close all child items using the correct API endpoint for each type
         for (const item of childItems) {
-          await fetch(`/api/action-items/${item.id}`, {
+          const endpoint = getApiEndpoint(item.item_type, item.id, accountPlanId)
+          await fetch(endpoint, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ status: 'closed' }),

@@ -92,42 +92,58 @@ export function getDefaultDueDateForBucket(bucket: '30' | '60' | '90' | ''): Dat
 
 export function painPointToSignalItem(painPoint: {
   pain_point_id: string
-  title: string
+  title?: string
   description?: string
   severity?: string
   status?: string
+  target_date?: string
   created_at?: string
+  initiative_id?: string
+  bucket?: string
 }): SignalItem {
   return {
     id: painPoint.pain_point_id,
-    title: painPoint.title,
+    // DB has description only, no title column - use description as title
+    title: painPoint.title || painPoint.description || 'Untitled',
     description: painPoint.description,
     priority: painPoint.severity === 'critical' ? 'P1' : painPoint.severity === 'significant' ? 'P2' : 'P3',
-    status: (painPoint.status as SignalItem['status']) || 'open',
+    // Map pain_point status (active/addressed) to tracker status (open/completed)
+    status: painPoint.status === 'addressed' ? 'completed' : 'open',
+    due_date: painPoint.target_date,  // Map target_date → due_date for tracker
     severity: painPoint.severity,
     item_type: 'pain_point',
     created_at: painPoint.created_at,
+    initiative_id: painPoint.initiative_id,
+    bucket: painPoint.bucket as SignalItem['bucket'],
   }
 }
 
 export function riskToSignalItem(risk: {
   risk_id: string
-  title: string
+  title?: string
   description?: string
   severity?: string
   status?: string
+  target_date?: string
   mitigation_plan?: string
   created_at?: string
+  initiative_id?: string
+  bucket?: string
 }): SignalItem {
   return {
     id: risk.risk_id,
-    title: risk.title,
+    // DB has description only, no title column - use description as title
+    title: risk.title || risk.description || 'Untitled',
     description: risk.description || risk.mitigation_plan,
     priority: risk.severity === 'critical' ? 'P1' : risk.severity === 'high' ? 'P2' : 'P3',
-    status: (risk.status as SignalItem['status']) || 'open',
+    // Map risk status (open/mitigated/closed) to tracker status
+    status: risk.status === 'mitigated' ? 'completed' : risk.status === 'closed' ? 'closed' : 'open',
+    due_date: risk.target_date,  // Map target_date → due_date for tracker
     severity: risk.severity,
     item_type: 'risk',
     created_at: risk.created_at,
+    initiative_id: risk.initiative_id,
+    bucket: risk.bucket as SignalItem['bucket'],
   }
 }
 
@@ -162,7 +178,11 @@ export function fieldRequestToSignalItem(request: {
   description?: string
   priority?: string
   status?: string
+  due_date?: string
+  target_date?: string
   created_at?: string
+  initiative_id?: string
+  bucket?: string
 }): SignalItem {
   return {
     id: request.id,
@@ -170,8 +190,11 @@ export function fieldRequestToSignalItem(request: {
     description: request.description,
     priority: (request.priority as SignalItem['priority']) || 'P2',
     status: (request.status as SignalItem['status']) || 'open',
+    due_date: request.due_date || request.target_date,
     item_type: 'field_request',
     created_at: request.created_at,
+    initiative_id: request.initiative_id,
+    bucket: request.bucket as SignalItem['bucket'],
   }
 }
 
@@ -181,7 +204,11 @@ export function hazardToSignalItem(hazard: {
   description?: string
   severity?: string
   status?: string
+  due_date?: string
+  target_date?: string
   created_at?: string
+  initiative_id?: string
+  bucket?: string
 }): SignalItem {
   return {
     id: hazard.id,
@@ -189,9 +216,12 @@ export function hazardToSignalItem(hazard: {
     description: hazard.description,
     priority: hazard.severity === 'critical' ? 'P1' : hazard.severity === 'high' ? 'P2' : 'P3',
     status: (hazard.status as SignalItem['status']) || 'open',
+    due_date: hazard.due_date || hazard.target_date,
     severity: hazard.severity,
     item_type: 'hazard',
     created_at: hazard.created_at,
+    initiative_id: hazard.initiative_id,
+    bucket: hazard.bucket as SignalItem['bucket'],
   }
 }
 

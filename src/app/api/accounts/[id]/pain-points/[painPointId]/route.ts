@@ -13,24 +13,31 @@ export async function PATCH(
 
   try {
     const body = await request.json()
+    console.log('[PATCH pain-points] Request body:', JSON.stringify(body, null, 2))
+    console.log('[PATCH pain-points] painPointId:', painPointId, 'accountId:', id)
 
     // Build update object with only provided fields
     const updateData: Record<string, unknown> = {}
 
-    // Handle title field - map to both title and description for compatibility
+    // pain_points table has NO title column - only description
+    // Map title → description for UI compatibility
     if (body.title !== undefined) {
-      updateData.title = body.title
-      // Also set description if not explicitly provided (description is required in DB)
-      if (body.description === undefined || body.description === null) {
-        updateData.description = body.title
-      }
+      updateData.description = body.title || ''
     }
-    // Handle description - never set to null (use empty string or title as fallback)
     if (body.description !== undefined) {
       updateData.description = body.description || body.title || ''
     }
     if (body.severity !== undefined) updateData.severity = body.severity
-    if (body.status !== undefined) updateData.status = body.status
+    // Map tracker status to pain_point status
+    if (body.status !== undefined) {
+      // Tracker uses: open, in_progress, completed, closed
+      // Pain points use: active, addressed
+      if (body.status === 'completed' || body.status === 'closed' || body.status === 'addressed') {
+        updateData.status = 'addressed'
+      } else {
+        updateData.status = 'active'
+      }
+    }
     if (body.priority !== undefined) updateData.severity = body.priority === 'P1' ? 'critical' : body.priority === 'P2' ? 'significant' : 'moderate'
     if (body.target_date !== undefined) updateData.target_date = body.target_date
     if (body.due_date !== undefined) updateData.target_date = body.due_date // Alias for target_date
@@ -41,6 +48,15 @@ export async function PATCH(
     if (body.pursuit_id !== undefined) updateData.pursuit_id = body.pursuit_id
     if (body.addressed_date !== undefined) updateData.addressed_date = body.addressed_date
     if (body.addressed_notes !== undefined) updateData.addressed_notes = body.addressed_notes
+    if (body.initiative_id !== undefined) updateData.initiative_id = body.initiative_id
+    if (body.bucket !== undefined) updateData.bucket = body.bucket
+
+    // Final safety: never send null description to database
+    if (updateData.description === null || updateData.description === undefined) {
+      delete updateData.description
+    }
+
+    console.log('[PATCH pain-points] updateData:', JSON.stringify(updateData, null, 2))
 
     const { data, error } = await supabase
       .from('pain_points')
@@ -51,9 +67,15 @@ export async function PATCH(
       .single()
 
     if (error) {
-      console.error('Supabase error:', error)
+      console.error('[PATCH pain-points] Supabase error:', JSON.stringify(error, null, 2))
       return NextResponse.json(
-        { error: error.message, details: error.details },
+        {
+          error: error.message,
+          code: error.code,
+          details: error.details,
+          hint: error.hint,
+          updateData_sent: updateData
+        },
         { status: 400 }
       )
     }
@@ -62,7 +84,7 @@ export async function PATCH(
   } catch (error) {
     console.error('API error:', error)
     return NextResponse.json(
-      { error: 'Failed to update pain point' },
+      { error: error instanceof Error ? error.message : 'Failed to update pain point', stack: error instanceof Error ? error.stack : undefined },
       { status: 500 }
     )
   }

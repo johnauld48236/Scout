@@ -3,6 +3,7 @@
 import { useState, useEffect, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { DataAnnotation } from '@/components/prototype/DataAnnotation'
+import { MissionDrawer } from '@/components/drawers/MissionDrawer'
 import {
   SignalBucket,
   TrackerSection,
@@ -79,6 +80,9 @@ interface FieldRequest {
   priority?: string
   status?: string
   created_at?: string
+  initiative_id?: string
+  bucket?: string
+  target_date?: string
 }
 
 interface Hazard {
@@ -88,6 +92,19 @@ interface Hazard {
   severity?: string
   status?: string
   created_at?: string
+  initiative_id?: string
+  bucket?: string
+  target_date?: string
+}
+
+interface Mission {
+  spark_id: string
+  title: string
+  description: string
+  why_it_matters?: string
+  health_impact: 'high' | 'medium' | 'low'
+  status: string
+  questions_to_explore: string[]
 }
 
 interface VectorInExecutionModeProps {
@@ -100,6 +117,7 @@ interface VectorInExecutionModeProps {
   initiatives?: Initiative[]
   fieldRequests?: FieldRequest[]
   hazards?: Hazard[]
+  missions?: Mission[]
   onDataRefresh?: () => void
 }
 
@@ -113,6 +131,7 @@ export function VectorInExecutionMode({
   initiatives = [],
   fieldRequests = [],
   hazards = [],
+  missions: initialMissions = [],
   onDataRefresh,
 }: VectorInExecutionModeProps) {
   const router = useRouter()
@@ -150,6 +169,12 @@ export function VectorInExecutionMode({
   const [fetchedInitiatives, setFetchedInitiatives] = useState<TrackerInitiative[]>([])
   const [showClosedItems, setShowClosedItems] = useState(false)
 
+  // Mission state
+  const [missions, setMissions] = useState<Mission[]>(initialMissions)
+  const [selectedMission, setSelectedMission] = useState<Mission | null>(null)
+  const [isMissionDrawerOpen, setIsMissionDrawerOpen] = useState(false)
+  const [isCreatingMission, setIsCreatingMission] = useState(false)
+
   // Fetch initiatives from buckets API
   useEffect(() => {
     const fetchInitiatives = async () => {
@@ -182,6 +207,22 @@ export function VectorInExecutionMode({
     fetchInitiatives()
   }, [accountPlanId])
 
+  // Fetch missions (Vector In scout_themes)
+  useEffect(() => {
+    const fetchMissions = async () => {
+      try {
+        const response = await fetch(`/api/scout-themes?account_plan_id=${accountPlanId}&vector=in`)
+        if (response.ok) {
+          const data = await response.json()
+          setMissions(data || [])
+        }
+      } catch (error) {
+        console.error('Failed to fetch missions:', error)
+      }
+    }
+    fetchMissions()
+  }, [accountPlanId])
+
   // Convert data to SignalItem format for unified components
   const actionSignals: SignalItem[] = resolutionItems.map(a => actionItemToSignalItem({
     action_id: a.action_id,
@@ -193,25 +234,49 @@ export function VectorInExecutionMode({
     initiative_id: a.initiative_id,
   }))
 
-  // Convert Field Requests to SignalItem format
+  // Convert Field Requests to SignalItem format (pain_points in VectorIn context)
   const fieldRequestSignals: SignalItem[] = fieldRequests.map(fr => fieldRequestToSignalItem({
     id: fr.id,
     title: fr.title,
     description: fr.description,
     priority: fr.priority,
     status: fr.status,
+    target_date: fr.target_date,
     created_at: fr.created_at,
+    initiative_id: fr.initiative_id,
+    bucket: fr.bucket,
   }))
 
-  // Convert Hazards to SignalItem format
+  // Convert Hazards to SignalItem format (risks in VectorIn context)
   const hazardSignals: SignalItem[] = hazards.map(h => hazardToSignalItem({
     id: h.id,
     title: h.title,
     description: h.description,
     severity: h.severity,
     status: h.status,
+    target_date: h.target_date,
     created_at: h.created_at,
+    initiative_id: h.initiative_id,
+    bucket: h.bucket,
   }))
+
+  // Combined signals for Rescue Ops tracker - includes ALL item types with dates
+  const allRescueSignals: SignalItem[] = [
+    ...fieldRequestSignals,
+    ...hazardSignals,
+    ...actionSignals,
+  ]
+
+  // Past Due items (due_date < today AND not closed/completed)
+  const pastDueItems = allRescueSignals.filter((item) => {
+    if (!item.due_date) return false
+    if (item.status === 'closed' || item.status === 'completed') return false
+    const due = new Date(item.due_date)
+    const now = new Date()
+    now.setHours(0, 0, 0, 0) // Compare dates only
+    return due < now
+  })
+
   const distressSignals: SignalItem[] = issueSignals.map(s => distressSignalToSignalItem({
     signal_id: s.signal_id,
     title: s.title,
@@ -565,15 +630,14 @@ export function VectorInExecutionMode({
       <div className="grid grid-cols-3 gap-6">
         {/* Left Column - Resolution Tracker */}
         <div className="col-span-2 space-y-6">
-          {/* Rescue Ops - Unified TrackerSection */}
+          {/* Rescue Ops - Unified TrackerSection with ALL item types */}
           <TrackerSection
             title="Rescue Ops"
-            items={actionSignals}
+            items={allRescueSignals}
             initiatives={fetchedInitiatives}
             accountPlanId={accountPlanId}
             showClosed={showClosedItems}
             onRefresh={handleUnifiedRefresh}
-            itemType="action_item"
           />
 
           {/* Date Assignment Modal */}
@@ -633,39 +697,54 @@ export function VectorInExecutionMode({
             </div>
           )}
 
-          {/* Urgent Focus */}
-          <div
-            className="rounded-xl border p-4"
-            style={{ backgroundColor: 'var(--scout-white)', borderColor: 'var(--scout-border)' }}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold text-sm" style={{ color: 'var(--scout-saddle)' }}>
-                Urgent Focus
-              </h3>
-              <DataAnnotation note="P1 tickets + escalations" />
-            </div>
+          {/* Past Due */}
+          {pastDueItems.length > 0 && (
+            <div
+              className="rounded-xl border p-4"
+              style={{ backgroundColor: 'var(--scout-white)', borderColor: 'var(--scout-clay)' }}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span>⚠️</span>
+                  <h3 className="font-semibold text-sm" style={{ color: 'var(--scout-clay)' }}>
+                    Past Due
+                  </h3>
+                  <span
+                    className="text-xs px-1.5 py-0.5 rounded-full"
+                    style={{ backgroundColor: 'rgba(169, 68, 66, 0.1)', color: 'var(--scout-clay)' }}
+                  >
+                    {pastDueItems.length}
+                  </span>
+                </div>
+              </div>
 
-            <div className="space-y-2">
-              {p1Issues.slice(0, 2).map((issue) => (
-                <div
-                  key={issue.issue_id}
-                  className="p-3 rounded-lg"
-                  style={{ backgroundColor: 'rgba(169, 68, 66, 0.05)' }}
-                >
-                  <div className="flex items-center gap-2">
-                    <span>🔴</span>
-                    <span className="text-sm font-medium" style={{ color: 'var(--scout-saddle)' }}>
-                      {issue.title}
+              <div className="space-y-2">
+                {pastDueItems.slice(0, 5).map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center gap-2 text-sm p-2 rounded"
+                    style={{ backgroundColor: 'rgba(169, 68, 66, 0.05)' }}
+                  >
+                    <span className="text-xs px-1.5 py-0.5 rounded capitalize" style={{ backgroundColor: 'var(--scout-parchment)', color: 'var(--scout-earth-light)' }}>
+                      {item.item_type.replace('_', ' ')}
+                    </span>
+                    <span className="flex-1 truncate" style={{ color: 'var(--scout-saddle)' }}>
+                      {item.title}
+                    </span>
+                    <span className="text-xs" style={{ color: 'var(--scout-clay)' }}>
+                      {new Date(item.due_date!).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                     </span>
                   </div>
-                  <p className="text-xs mt-1 ml-6" style={{ color: 'var(--scout-earth-light)' }}>
-                    {issue.created_days_ago} days open
-                  </p>
-                  <DataAnnotation note="Escalation risk: High" inline />
-                </div>
-              ))}
+                ))}
+              </div>
+
+              {pastDueItems.length > 5 && (
+                <p className="mt-2 text-xs" style={{ color: 'var(--scout-earth-light)' }}>
+                  + {pastDueItems.length - 5} more past due
+                </p>
+              )}
             </div>
-          </div>
+          )}
 
           {/* Customer Needs and Platform Issues Row - Unified SignalBuckets */}
           <div className="grid grid-cols-2 gap-4">
@@ -827,6 +906,101 @@ export function VectorInExecutionMode({
             <button className="mt-3 text-xs" style={{ color: 'var(--scout-sky)' }}>
               View all →
             </button>
+          </div>
+
+          {/* Missions (Customer Success Initiatives) */}
+          <div
+            className="rounded-xl border p-4"
+            style={{ backgroundColor: 'var(--scout-white)', borderColor: 'var(--scout-border)' }}
+          >
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-sm" style={{ color: 'var(--scout-saddle)' }}>
+                Missions ({missions.filter(m => m.status !== 'closed').length})
+              </h3>
+              <button
+                onClick={() => {
+                  setSelectedMission(null)
+                  setIsCreatingMission(true)
+                  setIsMissionDrawerOpen(true)
+                }}
+                className="text-xs px-2 py-0.5 rounded border hover:bg-gray-50"
+                style={{ borderColor: 'var(--scout-border)', color: 'var(--scout-sky)' }}
+              >
+                + Launch
+              </button>
+            </div>
+
+            {missions.filter(m => m.status !== 'closed').length === 0 ? (
+              <div
+                className="p-4 rounded-lg text-center"
+                style={{ backgroundColor: 'var(--scout-parchment)' }}
+              >
+                <p className="text-sm" style={{ color: 'var(--scout-earth-light)' }}>
+                  No active missions
+                </p>
+                <button
+                  onClick={() => {
+                    setSelectedMission(null)
+                    setIsCreatingMission(true)
+                    setIsMissionDrawerOpen(true)
+                  }}
+                  className="mt-2 text-xs underline"
+                  style={{ color: 'var(--scout-sky)' }}
+                >
+                  Launch your first mission
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {missions.filter(m => m.status !== 'closed').map((mission) => {
+                  const impactColors = {
+                    high: { bg: 'rgba(169, 68, 66, 0.1)', color: 'var(--scout-clay)' },
+                    medium: { bg: 'rgba(210, 105, 30, 0.1)', color: 'var(--scout-sunset)' },
+                    low: { bg: 'rgba(93, 122, 93, 0.1)', color: 'var(--scout-trail)' },
+                  }
+                  const style = impactColors[mission.health_impact] || impactColors.medium
+                  return (
+                    <div
+                      key={mission.spark_id}
+                      onClick={() => {
+                        setSelectedMission(mission)
+                        setIsCreatingMission(false)
+                        setIsMissionDrawerOpen(true)
+                      }}
+                      className="p-3 rounded-lg cursor-pointer transition-colors hover:ring-1 hover:ring-gray-200"
+                      style={{ backgroundColor: 'var(--scout-parchment)' }}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="text-xs font-medium px-2 py-0.5 rounded"
+                              style={{ backgroundColor: style.bg, color: style.color }}
+                            >
+                              {mission.health_impact.toUpperCase()}
+                            </span>
+                            <span
+                              className="text-xs px-1.5 py-0.5 rounded capitalize"
+                              style={{ backgroundColor: 'var(--scout-parchment)', color: 'var(--scout-earth-light)', border: '1px solid var(--scout-border)' }}
+                            >
+                              {mission.status}
+                            </span>
+                          </div>
+                          <p className="text-sm font-medium mt-1 truncate" style={{ color: 'var(--scout-saddle)' }}>
+                            {mission.title}
+                          </p>
+                          {mission.description && (
+                            <p className="text-xs mt-1 line-clamp-2" style={{ color: 'var(--scout-earth-light)' }}>
+                              {mission.description}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
 
           {/* Compass (Contacts) */}
@@ -1024,6 +1198,33 @@ export function VectorInExecutionMode({
           </div>
         </div>
       )}
+
+      {/* Mission Drawer */}
+      <MissionDrawer
+        isOpen={isMissionDrawerOpen}
+        onClose={() => {
+          setIsMissionDrawerOpen(false)
+          setSelectedMission(null)
+          setIsCreatingMission(false)
+        }}
+        mission={selectedMission}
+        accountPlanId={accountPlanId}
+        onSave={() => {
+          // Refresh missions
+          fetch(`/api/scout-themes?account_plan_id=${accountPlanId}&vector=in`)
+            .then(res => res.json())
+            .then(data => setMissions(data || []))
+            .catch(err => console.error('Failed to refresh missions:', err))
+        }}
+        onDelete={() => {
+          // Refresh missions
+          fetch(`/api/scout-themes?account_plan_id=${accountPlanId}&vector=in`)
+            .then(res => res.json())
+            .then(data => setMissions(data || []))
+            .catch(err => console.error('Failed to refresh missions:', err))
+        }}
+        mode={isCreatingMission ? 'create' : 'edit'}
+      />
     </div>
   )
 }

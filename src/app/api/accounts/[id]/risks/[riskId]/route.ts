@@ -64,29 +64,45 @@ export async function PATCH(
     // Build update object with only provided fields
     const updateData: Record<string, unknown> = {}
 
-    // Handle title field - map to both title and description for compatibility
+    // risks table has NO title column - only description
+    // Map title → description for UI compatibility
     if (body.title !== undefined) {
-      updateData.title = body.title
-      // Also set description if not explicitly provided (description is required in DB)
-      if (body.description === undefined || body.description === null) {
-        updateData.description = body.title
-      }
+      updateData.description = body.title || ''
     }
-    // Handle description - never set to null (use empty string or title as fallback)
     if (body.description !== undefined) {
       updateData.description = body.description || body.title || ''
     }
     if (body.severity !== undefined) updateData.severity = body.severity
     if (body.priority !== undefined) updateData.severity = body.priority === 'P1' ? 'critical' : body.priority === 'P2' ? 'high' : 'medium'
-    if (body.status !== undefined) updateData.status = body.status
+    // Map tracker status to risk status
+    if (body.status !== undefined) {
+      // Tracker uses: open, in_progress, completed, closed
+      // Risks use: open, mitigated, closed, realized
+      if (body.status === 'completed') {
+        updateData.status = 'mitigated'
+      } else if (body.status === 'open' || body.status === 'closed') {
+        updateData.status = body.status
+      } else if (body.status === 'in_progress') {
+        updateData.status = 'open'
+      } else {
+        updateData.status = body.status // Pass through for valid risk statuses
+      }
+    }
     if (body.mitigation !== undefined) updateData.mitigation = body.mitigation
     if (body.impact_on_bant !== undefined) updateData.impact_on_bant = body.impact_on_bant
     if (body.target_date !== undefined) updateData.target_date = body.target_date
     if (body.due_date !== undefined) updateData.target_date = body.due_date // Alias for target_date
     if (body.date_type !== undefined) updateData.date_type = body.date_type
     if (body.pursuit_id !== undefined) updateData.pursuit_id = body.pursuit_id
+    if (body.initiative_id !== undefined) updateData.initiative_id = body.initiative_id
+    if (body.bucket !== undefined) updateData.bucket = body.bucket
     // Support restore by setting deleted_at to null
     if (body.deleted_at === null) updateData.deleted_at = null
+
+    // Final safety: never send null description to database
+    if (updateData.description === null || updateData.description === undefined) {
+      delete updateData.description
+    }
 
     const { data, error } = await supabase
       .from('risks')

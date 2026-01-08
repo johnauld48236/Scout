@@ -73,11 +73,12 @@ export function ItemEditModal({
   const getApiEndpoint = () => {
     switch (itemType) {
       case 'pain_point':
+      case 'field_request':
         return `/api/accounts/${accountPlanId}/pain-points`
       case 'risk':
+      case 'hazard':
         return `/api/accounts/${accountPlanId}/risks`
       case 'action_item':
-        return '/api/action-items'
       default:
         return '/api/action-items'
     }
@@ -118,12 +119,15 @@ export function ItemEditModal({
 
       const payload: Record<string, unknown> = {
         title: formData.title,
-        description: formData.description || null,
         priority: formData.priority,
         status: formData.status,
         due_date: dueDate || null,
         bucket,
         initiative_id: initiativeId,
+      }
+      // Only include description if it has a value (avoid sending null to API)
+      if (formData.description) {
+        payload.description = formData.description
       }
 
       if (!isEditing) {
@@ -133,6 +137,9 @@ export function ItemEditModal({
       const endpoint = isEditing ? `${getApiEndpoint()}/${item!.id}` : getApiEndpoint()
       const method = isEditing ? 'PATCH' : 'POST'
 
+      console.log('[ItemEditModal] Save payload:', JSON.stringify(payload, null, 2))
+      console.log('[ItemEditModal] Endpoint:', endpoint, 'Method:', method)
+
       const response = await fetch(endpoint, {
         method,
         headers: { 'Content-Type': 'application/json' },
@@ -140,13 +147,16 @@ export function ItemEditModal({
       })
 
       if (!response.ok) {
-        throw new Error('Failed to save')
+        const errorData = await response.json().catch(() => ({}))
+        console.error('[ItemEditModal] API Error:', response.status, errorData)
+        throw new Error(errorData.error || 'Failed to save')
       }
 
       onSave()
       onClose()
     } catch (err) {
-      setError('Failed to save. Please try again.')
+      console.error('[ItemEditModal] Save error:', err)
+      setError(err instanceof Error ? err.message : 'Failed to save. Please try again.')
     } finally {
       setIsSubmitting(false)
     }

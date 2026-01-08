@@ -108,6 +108,7 @@ export async function PUT(request: NextRequest) {
     // Build update object with only provided fields
     const updateData: Record<string, unknown> = {}
 
+    // Note: division_id removed - column doesn't exist yet
     const allowedFields = [
       'full_name',
       'title',
@@ -118,7 +119,6 @@ export async function PUT(request: NextRequest) {
       'sentiment',
       'business_unit',
       'department',
-      'division_id',
       'is_placeholder',
       'placeholder_role',
       'notes',

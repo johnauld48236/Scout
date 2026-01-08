@@ -145,11 +145,15 @@ export function SignalBucket({
                     </span>
                     <div className="flex items-center gap-2 mt-0.5">
                       {getSeverityBadge(item.severity)}
-                      {item.initiative_id && (
-                        <span className="text-[10px]" style={{ color: 'var(--scout-sky)' }}>
+                      {item.initiative_id ? (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: 'rgba(59, 130, 246, 0.1)', color: 'var(--scout-sky)' }}>
                           📁 In initiative
                         </span>
-                      )}
+                      ) : item.due_date ? (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded" style={{ backgroundColor: 'rgba(93, 122, 93, 0.1)', color: 'var(--scout-trail)' }}>
+                          📋 In Plan
+                        </span>
+                      ) : null}
                       {item.due_date && (
                         <span className="text-[10px]" style={{ color: 'var(--scout-earth-light)' }}>
                           {new Date(item.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
@@ -187,7 +191,7 @@ export function SignalBucket({
         item={selectedItem}
         initiatives={initiatives}
         accountPlanId={accountPlanId}
-        itemType={itemType}
+        itemType={selectedItem?.item_type || itemType}
         onSave={onRefresh}
         onDelete={onRefresh}
       />

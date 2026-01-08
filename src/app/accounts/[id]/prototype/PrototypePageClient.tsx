@@ -150,19 +150,31 @@ interface ActionItem {
   priority: string
   bucket: '30' | '60' | '90'
   slip_acknowledged?: boolean
+  initiative_id?: string
 }
 
 interface PainPoint {
   pain_point_id: string
   title: string
+  description?: string
   severity: string
+  status?: string
+  target_date?: string
+  created_at?: string
+  initiative_id?: string
+  bucket?: string
 }
 
 interface Risk {
   risk_id: string
   title: string
+  description?: string
   severity: string
   status: string
+  target_date?: string
+  created_at?: string
+  initiative_id?: string
+  bucket?: string
 }
 
 interface Signal {
@@ -616,20 +628,31 @@ export function PrototypePageClient({
                       priority: ai.priority || 'P3',
                       timeframe,
                       bucket: ai.bucket,
+                      initiative_id: ai.initiative_id,
                     }
                   })}
                   accountPlanId={accountId}
                   fieldRequests={painPoints.map(p => ({
                     id: p.pain_point_id,
                     title: p.title,
+                    description: p.description,
                     priority: p.severity === 'critical' ? 'high' : p.severity === 'significant' ? 'medium' : 'low',
-                    status: 'open',
+                    status: p.status || 'open',
+                    created_at: p.created_at,
+                    initiative_id: p.initiative_id,
+                    bucket: p.bucket,
+                    target_date: p.target_date,
                   }))}
                   hazards={risks.map(r => ({
                     id: r.risk_id,
                     title: r.title,
+                    description: r.description,
                     severity: r.severity,
                     status: r.status,
+                    created_at: r.created_at,
+                    initiative_id: r.initiative_id,
+                    bucket: r.bucket,
+                    target_date: r.target_date,
                   }))}
                   onDataRefresh={handlePanelUpdate}
                 />

@@ -28,26 +28,18 @@ async function handleUpdate(
     if (body.bucket !== undefined) updates.bucket = body.bucket
     if (body.slip_acknowledged !== undefined) updates.slip_acknowledged = body.slip_acknowledged
 
+    // Remove bucket from updates if present - column may not exist
+    const hasBucket = updates.bucket !== undefined
+    if (hasBucket) {
+      delete updates.bucket
+    }
+
     let { data, error } = await supabase
       .from('action_items')
       .update(updates)
       .eq('action_id', id)
       .select()
       .single()
-
-    // If bucket column doesn't exist, retry without it
-    if (error && error.code === 'PGRST204' && error.message?.includes('bucket')) {
-      console.log('Bucket column not found, retrying without it')
-      delete updates.bucket
-      const retry = await supabase
-        .from('action_items')
-        .update(updates)
-        .eq('action_id', id)
-        .select()
-        .single()
-      data = retry.data
-      error = retry.error
-    }
 
     if (error) {
       console.error('Error updating action item:', error)

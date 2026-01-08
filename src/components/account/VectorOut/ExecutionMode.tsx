@@ -46,19 +46,31 @@ interface ActionItem {
   bucket: '30' | '60' | '90'
   owner?: string
   pursuit_id?: string
+  initiative_id?: string
 }
 
 interface PainPoint {
   pain_point_id: string
-  title: string
+  title?: string
+  description?: string
   severity: string
+  status?: string
+  target_date?: string
+  created_at?: string
+  initiative_id?: string
+  bucket?: string
 }
 
 interface Risk {
   risk_id: string
-  title: string
+  title?: string
+  description?: string
   severity: string
   status: string
+  target_date?: string
+  created_at?: string
+  initiative_id?: string
+  bucket?: string
 }
 
 interface Signal {
@@ -200,17 +212,29 @@ export function VectorOutExecutionMode({
   }, [accountPlanId])
 
   // Convert data to SignalItem format for unified components
+  // Note: DB has description, not title - pass both for adapter fallback
   const painPointSignals: SignalItem[] = painPoints.map(p => painPointToSignalItem({
     pain_point_id: p.pain_point_id,
     title: p.title,
+    description: p.description,
     severity: p.severity,
+    status: p.status,
+    target_date: p.target_date,
+    created_at: p.created_at,
+    initiative_id: p.initiative_id,
+    bucket: p.bucket,
   }))
 
   const riskSignals: SignalItem[] = risks.map(r => riskToSignalItem({
     risk_id: r.risk_id,
     title: r.title,
+    description: r.description,
     severity: r.severity,
     status: r.status,
+    target_date: r.target_date,
+    created_at: r.created_at,
+    initiative_id: r.initiative_id,
+    bucket: r.bucket,
   }))
 
   const actionSignals: SignalItem[] = actionItems.map(a => actionItemToSignalItem({
@@ -220,7 +244,15 @@ export function VectorOutExecutionMode({
     status: a.status,
     due_date: a.due_date,
     bucket: a.bucket,
+    initiative_id: a.initiative_id,
   }))
+
+  // Combined signals for Journey tracker - includes ALL item types with dates
+  const allJourneySignals: SignalItem[] = [
+    ...painPointSignals,
+    ...riskSignals,
+    ...actionSignals,
+  ]
 
   const handleRefresh = () => {
     onActionUpdate?.()
@@ -517,12 +549,14 @@ export function VectorOutExecutionMode({
   const bucket60 = actionItems.filter((a) => a.bucket === '60')
   const bucket90 = actionItems.filter((a) => a.bucket === '90')
 
-  // 2-week focus (next 14 days)
-  const twoWeekItems = actionItems.filter((a) => {
-    const due = new Date(a.due_date)
+  // Past Due items (due_date < today AND not closed/completed)
+  const pastDueItems = allJourneySignals.filter((item) => {
+    if (!item.due_date) return false
+    if (item.status === 'closed' || item.status === 'completed') return false
+    const due = new Date(item.due_date)
     const now = new Date()
-    const diff = Math.ceil((due.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-    return diff <= 14 && diff >= 0
+    now.setHours(0, 0, 0, 0) // Compare dates only
+    return due < now
   })
 
   const getSizeBadge = (size: string) => {
@@ -546,60 +580,66 @@ export function VectorOutExecutionMode({
       <div className="grid grid-cols-3 gap-6">
         {/* Left Column - Tracker */}
         <div className="col-span-2 space-y-6">
-          {/* Journey (30/60/90 Plan) - Unified TrackerSection */}
+          {/* Journey (30/60/90 Plan) - Unified TrackerSection with ALL item types */}
           {accountPlanId && (
             <TrackerSection
               title="Journey"
-              items={actionSignals}
+              items={allJourneySignals}
               initiatives={initiatives}
               accountPlanId={accountPlanId}
               showClosed={showClosedItems}
               onRefresh={handleRefresh}
-              itemType="action_item"
             />
           )}
 
-          {/* 2-Week Focus */}
-          <div
-            className="rounded-xl border p-4"
-            style={{ backgroundColor: 'var(--scout-white)', borderColor: 'var(--scout-border)' }}
-          >
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-semibold text-sm" style={{ color: 'var(--scout-saddle)' }}>
-                2-Week Focus
-              </h3>
-              <span className="text-xs" style={{ color: 'var(--scout-earth-light)' }}>
-                Jan 5 - Jan 19
-              </span>
-            </div>
-            <DataAnnotation source="action_items" note="Filter: due_date within 14 days" inline />
-
-            <div className="mt-3 space-y-2">
-              {twoWeekItems.slice(0, 3).map((item) => (
-                <div
-                  key={item.action_id}
-                  className="flex items-center gap-2 text-sm p-2 rounded"
-                  style={{ backgroundColor: 'var(--scout-parchment)' }}
-                >
-                  <span>●</span>
-                  <span className="flex-1" style={{ color: 'var(--scout-saddle)' }}>
-                    {item.title}
-                  </span>
-                  <span className="text-xs" style={{ color: 'var(--scout-earth-light)' }}>
-                    {new Date(item.due_date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+          {/* Past Due */}
+          {pastDueItems.length > 0 && (
+            <div
+              className="rounded-xl border p-4"
+              style={{ backgroundColor: 'var(--scout-white)', borderColor: 'var(--scout-clay)' }}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <span>⚠️</span>
+                  <h3 className="font-semibold text-sm" style={{ color: 'var(--scout-clay)' }}>
+                    Past Due
+                  </h3>
+                  <span
+                    className="text-xs px-1.5 py-0.5 rounded-full"
+                    style={{ backgroundColor: 'rgba(169, 68, 66, 0.1)', color: 'var(--scout-clay)' }}
+                  >
+                    {pastDueItems.length}
                   </span>
                 </div>
-              ))}
-            </div>
+              </div>
 
-            <button
-              onClick={() => setIsAddingAction(true)}
-              className="mt-3 text-xs flex items-center gap-1 hover:underline"
-              style={{ color: 'var(--scout-sky)' }}
-            >
-              + Add Action
-            </button>
-          </div>
+              <div className="space-y-2">
+                {pastDueItems.slice(0, 5).map((item) => (
+                  <div
+                    key={item.id}
+                    className="flex items-center gap-2 text-sm p-2 rounded"
+                    style={{ backgroundColor: 'rgba(169, 68, 66, 0.05)' }}
+                  >
+                    <span className="text-xs px-1.5 py-0.5 rounded capitalize" style={{ backgroundColor: 'var(--scout-parchment)', color: 'var(--scout-earth-light)' }}>
+                      {item.item_type.replace('_', ' ')}
+                    </span>
+                    <span className="flex-1 truncate" style={{ color: 'var(--scout-saddle)' }}>
+                      {item.title}
+                    </span>
+                    <span className="text-xs" style={{ color: 'var(--scout-clay)' }}>
+                      {new Date(item.due_date!).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+              {pastDueItems.length > 5 && (
+                <p className="mt-2 text-xs" style={{ color: 'var(--scout-earth-light)' }}>
+                  + {pastDueItems.length - 5} more past due
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Pain Points and Risks Row - Unified SignalBuckets */}
           {accountPlanId && (

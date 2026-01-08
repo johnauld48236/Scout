@@ -46,9 +46,10 @@ export async function POST(
     const body = await request.json()
 
     // Build insert object with only valid fields
+    // risks table has NO title column - only description
     const insertData: Record<string, unknown> = {
       account_plan_id: id,
-      description: body.description,
+      description: body.title || body.description || 'Untitled',
       severity: body.severity || 'medium',
       status: body.status || 'open',
     }

@@ -15,9 +15,10 @@ export async function POST(
     console.log('[pain-points API] Body:', JSON.stringify(body, null, 2))
 
     // Build insert object with only valid fields
+    // pain_points table has NO title column - only description
     const insertData: Record<string, unknown> = {
       account_plan_id: id,
-      description: body.description,
+      description: body.title || body.description || 'Untitled',
       severity: body.severity || 'significant',
     }
 

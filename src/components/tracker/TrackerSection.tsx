@@ -5,6 +5,21 @@ import { SignalItem, Initiative, TIME_WINDOWS, PRIORITY_CONFIG, INITIATIVE_COLOR
 import { ItemEditModal } from './ItemEditModal'
 import { InitiativeModal } from './InitiativeModal'
 
+// Helper to get the correct API endpoint for an item type
+function getApiEndpoint(itemType: SignalItem['item_type'], itemId: string, accountPlanId: string): string {
+  switch (itemType) {
+    case 'pain_point':
+    case 'field_request':
+      return `/api/accounts/${accountPlanId}/pain-points/${itemId}`
+    case 'risk':
+    case 'hazard':
+      return `/api/accounts/${accountPlanId}/risks/${itemId}`
+    case 'action_item':
+    default:
+      return `/api/action-items/${itemId}`
+  }
+}
+
 interface TrackerSectionProps {
   title: string
   items: SignalItem[]
@@ -97,10 +112,15 @@ export function TrackerSection({
     const window = TIME_WINDOWS.find(w => w.key === windowKey)
     if (!window) return
 
+    // Find the item to get its type
+    const item = displayItems.find(i => i.id === draggedItemId)
+    if (!item) return
+
     const dueDate = getDefaultDueDateForBucket(window.bucket)
+    const endpoint = getApiEndpoint(item.item_type, draggedItemId, accountPlanId)
 
     try {
-      await fetch(`/api/action-items/${draggedItemId}`, {
+      await fetch(endpoint, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -121,10 +141,15 @@ export function TrackerSection({
   const handleDropToInitiative = async (initiativeId: string) => {
     if (!draggedItemId) return
 
+    // Find the item to get its type
+    const item = displayItems.find(i => i.id === draggedItemId)
+    if (!item) return
+
     const initiative = initiatives.find(i => i.id === initiativeId)
+    const endpoint = getApiEndpoint(item.item_type, draggedItemId, accountPlanId)
 
     try {
-      await fetch(`/api/action-items/${draggedItemId}`, {
+      await fetch(endpoint, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -229,13 +254,16 @@ export function TrackerSection({
                   >
                     {windowItems.length}
                   </span>
-                  <button
+                  <span
+                    role="button"
+                    tabIndex={0}
                     onClick={(e) => { e.stopPropagation(); handleAddItem(window.bucket) }}
-                    className="text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); handleAddItem(window.bucket) } }}
+                    className="text-xs opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                     style={{ color: 'var(--scout-sky)' }}
                   >
                     +
-                  </button>
+                  </span>
                 </div>
               </button>
 
@@ -334,13 +362,16 @@ export function TrackerSection({
                       <span className="text-xs" style={{ color: 'var(--scout-earth-light)' }}>
                         {initItems.length} items
                       </span>
-                      <button
+                      <span
+                        role="button"
+                        tabIndex={0}
                         onClick={(e) => { e.stopPropagation(); handleInitiativeClick(initiative) }}
-                        className="text-xs hover:underline"
+                        onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); handleInitiativeClick(initiative) } }}
+                        className="text-xs hover:underline cursor-pointer"
                         style={{ color: 'var(--scout-sky)' }}
                       >
                         Edit
-                      </button>
+                      </span>
                     </div>
                   </button>
 
@@ -411,7 +442,7 @@ export function TrackerSection({
         item={isAddingItem ? { id: '', title: '', priority: 'P2', status: 'open', item_type: itemType, bucket: addingToBucket } as SignalItem : selectedItem}
         initiatives={initiatives}
         accountPlanId={accountPlanId}
-        itemType={itemType}
+        itemType={selectedItem?.item_type || itemType}
         onSave={onRefresh}
         onDelete={onRefresh}
       />

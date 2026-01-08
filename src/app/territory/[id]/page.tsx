@@ -113,6 +113,7 @@ export default async function TerritoryPage({
     priority?: string
     bucket?: string
     slip_acknowledged?: boolean
+    initiative_id?: string
   }) => {
     // Use stored bucket if available, otherwise calculate from due_date
     let bucket: '30' | '60' | '90' = (action.bucket as '30' | '60' | '90') || '30'
@@ -132,33 +133,54 @@ export default async function TerritoryPage({
       priority: action.priority || 'Medium',
       bucket,
       slip_acknowledged: action.slip_acknowledged || false,
+      initiative_id: action.initiative_id,
     }
   })
 
-  // Transform pain_points
+  // Transform pain_points - include all fields needed by tracker adapter
   const painPointsForClient = painPoints.map((p: {
     pain_point_id: string
     description?: string
     title?: string
     severity?: string
+    status?: string
+    target_date?: string
+    created_at?: string
+    initiative_id?: string
+    bucket?: string
   }) => ({
     pain_point_id: p.pain_point_id,
     title: p.title || p.description || 'Untitled Pain Point',
+    description: p.description,
     severity: p.severity || 'moderate',
+    status: p.status || 'active',
+    target_date: p.target_date,
+    created_at: p.created_at,
+    initiative_id: p.initiative_id,
+    bucket: p.bucket,
   }))
 
-  // Transform risks
+  // Transform risks - include all fields needed by tracker adapter
   const risksForClient = risks.map((r: {
     risk_id: string
     title?: string
     description?: string
     severity?: string
     status?: string
+    target_date?: string
+    created_at?: string
+    initiative_id?: string
+    bucket?: string
   }) => ({
     risk_id: r.risk_id,
     title: r.title || r.description || 'Untitled Risk',
+    description: r.description,
     severity: r.severity || 'medium',
     status: r.status || 'open',
+    target_date: r.target_date,
+    created_at: r.created_at,
+    initiative_id: r.initiative_id,
+    bucket: r.bucket,
   }))
 
   // Transform signals
