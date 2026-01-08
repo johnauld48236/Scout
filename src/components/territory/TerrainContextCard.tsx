@@ -130,7 +130,7 @@ export function TerrainContextCard({
   }
 
   const renderDivisionCard = (division: Division, level: number) => {
-    const typeConfig = DIVISION_TYPE_BADGES[division.division_type || 'division']
+    const typeConfig = DIVISION_TYPE_BADGES[division.division_type || 'division'] || DIVISION_TYPE_BADGES.division
     const stakeholderCount = getStakeholderCount(division.division_id)
     const products = getDivisionProducts(division.division_id)
     const divisionStakeholders = getDivisionStakeholders(division.division_id)
