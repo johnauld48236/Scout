@@ -42,6 +42,8 @@ GRANT ALL ON import_batches TO anon, authenticated;
 GRANT ALL ON success_milestones TO anon, authenticated;
 GRANT ALL ON campaign_tam_accounts TO anon, authenticated;
 GRANT ALL ON campaign_goals TO anon, authenticated;
+GRANT ALL ON engagement_attendees TO anon, authenticated;
+GRANT ALL ON bant_analyses TO anon, authenticated;
 
 -- Verify: list table permissions (run separately to check)
 -- SELECT grantee, table_name, privilege_type

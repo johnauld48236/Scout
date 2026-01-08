@@ -299,7 +299,7 @@ INSERT INTO campaign_goals (campaign_id, goal_id, allocation_type, allocated_val
 -- ============================================================================
 -- REVIEW NOTES (for Weekly Review)
 -- ============================================================================
-INSERT INTO review_notes (note_id, account_plan_id, content, note_type, is_resolved) VALUES
+INSERT INTO review_notes (note_id, account_plan_id, note_text, note_type, is_resolved) VALUES
 ('00000000-0000-0000-0001-000000000801', '00000000-0000-0000-0001-000000000001', 'Escalation call scheduled with Engineering VP for Thursday', 'escalation', false),
 ('00000000-0000-0000-0001-000000000802', '00000000-0000-0000-0001-000000000001', 'Need to prep executive summary before QBR', 'action', false),
 ('00000000-0000-0000-0002-000000000801', '00000000-0000-0000-0002-000000000001', 'Cambridge expansion proposal looking strong - CMIO very supportive', 'positive', false),

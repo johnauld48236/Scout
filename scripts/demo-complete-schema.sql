@@ -555,13 +555,49 @@ CREATE TABLE IF NOT EXISTS bucket_items (
   PRIMARY KEY (bucket_id, item_type, item_id)
 );
 
+-- Engagement Attendees (junction for engagement logs)
+CREATE TABLE IF NOT EXISTS engagement_attendees (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  engagement_id UUID NOT NULL REFERENCES engagement_logs(engagement_id) ON DELETE CASCADE,
+  stakeholder_id UUID REFERENCES stakeholders(stakeholder_id) ON DELETE SET NULL,
+  role VARCHAR(100),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_engagement_attendees_engagement ON engagement_attendees(engagement_id);
+
+-- BANT Analyses (deal qualification scoring)
+CREATE TABLE IF NOT EXISTS bant_analyses (
+  analysis_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  pursuit_id UUID NOT NULL REFERENCES pursuits(pursuit_id) ON DELETE CASCADE,
+  account_plan_id UUID REFERENCES account_plans(account_plan_id) ON DELETE CASCADE,
+  budget_score INTEGER DEFAULT 0,
+  authority_score INTEGER DEFAULT 0,
+  need_score INTEGER DEFAULT 0,
+  timeline_score INTEGER DEFAULT 0,
+  budget_notes TEXT,
+  authority_notes TEXT,
+  need_notes TEXT,
+  timeline_notes TEXT,
+  total_score INTEGER GENERATED ALWAYS AS (budget_score + authority_score + need_score + timeline_score) STORED,
+  analysis_date TIMESTAMPTZ DEFAULT NOW(),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_bant_analyses_pursuit ON bant_analyses(pursuit_id);
+CREATE INDEX IF NOT EXISTS idx_bant_analyses_account ON bant_analyses(account_plan_id);
+
 -- Review Notes
 CREATE TABLE IF NOT EXISTS review_notes (
   note_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   account_plan_id UUID NOT NULL REFERENCES account_plans(account_plan_id) ON DELETE CASCADE,
-  content TEXT NOT NULL,
+  note_text TEXT NOT NULL,
   note_type VARCHAR(50) DEFAULT 'general',
   is_resolved BOOLEAN DEFAULT FALSE,
+  resolved_at TIMESTAMPTZ,
+  created_by VARCHAR(255),
+  review_week DATE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -616,6 +652,8 @@ ALTER TABLE division_product_usage ENABLE ROW LEVEL SECURITY;
 ALTER TABLE success_milestones ENABLE ROW LEVEL SECURITY;
 ALTER TABLE review_notes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE import_batches ENABLE ROW LEVEL SECURITY;
+ALTER TABLE engagement_attendees ENABLE ROW LEVEL SECURITY;
+ALTER TABLE bant_analyses ENABLE ROW LEVEL SECURITY;
 
 -- Allow all for anon users (demo mode)
 CREATE POLICY "Allow all" ON company_profile FOR ALL USING (true) WITH CHECK (true);
@@ -642,6 +680,8 @@ CREATE POLICY "Allow all" ON tam_contacts FOR ALL USING (true) WITH CHECK (true)
 CREATE POLICY "Allow all" ON tam_warm_paths FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON campaign_tam_accounts FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Allow all" ON pursuit_stakeholders FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON engagement_attendees FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Allow all" ON bant_analyses FOR ALL USING (true) WITH CHECK (true);
 
 -- ============================================
 -- DONE! Now run demo-seed.sql to add demo data
