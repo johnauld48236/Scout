@@ -14,7 +14,7 @@ import { ExternalSourcesPanel } from '@/components/account/ExternalSourcesPanel'
 import { ContextLayer } from '@/components/territory/ContextLayer'
 import { HealthScoreBreakdownCard } from '@/components/territory/HealthScoreBreakdownCard'
 import { ImportNotesDrawer } from '@/components/drawers/ImportNotesDrawer'
-import { MOCK_VECTOR_IN } from '@/components/prototype/mockData'
+// MOCK_VECTOR_IN removed - using real data now
 // Slide-out panel wrapper
 import { SlideOutPanel } from '@/components/panels/SlideOutPanel'
 // Mature components for consistent UX (replacing custom panels)
@@ -388,7 +388,9 @@ export function PrototypePageClient({
 
   // Calculate health from both vectors
   const pipelineValue = pursuits.reduce((sum, p) => sum + (p.estimated_value || 0), 0)
-  const p1Count = MOCK_VECTOR_IN.issues.filter((i) => i.priority === 'P1').length // Still using mock for VectorIn
+  // P1 count = critical risks + critical pain points
+  const p1Count = risks.filter(r => r.severity === 'critical').length +
+                  painPoints.filter(p => p.severity === 'critical').length
 
   // Calculate health status
   const health = calculateHealthStatus(pipelineValue, p1Count)
@@ -402,13 +404,23 @@ export function PrototypePageClient({
     actionItems.length > 0,
   ].filter(Boolean).length
 
+  // Vector In data areas - check real data
   const vectorInDataAreas = [
-    MOCK_VECTOR_IN.divisions.length > 0,
-    MOCK_VECTOR_IN.contacts.length > 0,
-    MOCK_VECTOR_IN.issues.length > 0,
-    MOCK_VECTOR_IN.patterns.length > 0,
-    MOCK_VECTOR_IN.resolution_items.length > 0,
+    divisions.length > 0,
+    stakeholders.length > 0,
+    risks.length > 0,
+    painPoints.length > 0,
+    actionItems.length > 0,
   ].filter(Boolean).length
+
+  // Computed discovery status for Vector In (based on real data)
+  const vectorInDiscoveryStatus = {
+    structure: { complete: divisions.length > 0, count: divisions.length, shared: true },
+    people: { complete: stakeholders.length > 0, count: stakeholders.length },
+    issues: { complete: (risks.length + painPoints.length) > 0, count: risks.length + painPoints.length },
+    patterns: { complete: false, count: 0 }, // Patterns require AI analysis
+    plan: { complete: actionItems.length > 0, count: actionItems.length },
+  }
 
   // Handle step clicks (opens slide-out panels)
   const handleStepClick = (step: string) => {
@@ -599,15 +611,15 @@ export function PrototypePageClient({
               {/* Vector In Content */}
               {vectorInMode === 'discovery' ? (
                 <VectorInDiscoveryMode
-                  discoveryStatus={MOCK_VECTOR_IN.discovery_status}
+                  discoveryStatus={vectorInDiscoveryStatus}
                   onStepClick={handleStepClick}
                 />
               ) : (
                 <VectorInExecutionMode
-                  patterns={MOCK_VECTOR_IN.patterns}
-                  issues={MOCK_VECTOR_IN.issues}
-                  issueSignals={MOCK_VECTOR_IN.issue_signals}
-                  contacts={MOCK_VECTOR_IN.contacts}
+                  patterns={[]}
+                  issues={[]}
+                  issueSignals={[]}
+                  contacts={[]}
                   resolutionItems={actionItems.map(ai => {
                     // Derive timeframe from bucket or due_date
                     let timeframe = 'backlog'
